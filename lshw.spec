@@ -1,7 +1,7 @@
 Summary:       Hardware lister
 Name:          lshw
 Version:       B.02.17
-Release:       3%{?dist}
+Release:       4%{?dist}
 License:       GPLv2
 Group:         Applications/System
 URL:           http://ezix.org/project/wiki/HardwareLiSter
@@ -11,6 +11,7 @@ Source2:       org.ezix.lshw.gui.policy
 Source3:       lshw-gui
 Patch0:        lshw-B.02.17-scan-fat-mem-bug.patch
 Patch1:        no_smbios_unsupp.patch
+Patch2:        0dff3470.patch
 BuildRequires: sqlite-devel
 Requires:      hwdata
 
@@ -40,6 +41,7 @@ plain, XML or HTML format.
 %setup -q
 %patch0 -p0
 %patch1 -p1
+%patch2 -p1
 
 %build
 %{__make} %{?_smp_mflags} SBINDIR="%{_sbindir}" RPM_OPT_FLAGS="%{optflags}" SQLITE=1 gui 
@@ -109,6 +111,10 @@ rm -rf %{buildroot}%{_datadir}/locale/fr/
 %{_datadir}/polkit-1/actions/org.ezix.lshw.gui.policy
 
 %changelog
+* Tue Jan 12 2016 Petr Oros <poros@redhat.com> - B.02.17-4
+- Report the vendor_id field for x86 cpu's
+- Resolves: #1215246
+
 * Mon Feb 9 2015 Petr Oros <poros@redhat.com> - B.02.17-3
 - Resolves: #1101592
 - Initial package for RHEL6.7
