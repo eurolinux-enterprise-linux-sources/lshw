@@ -1,7 +1,7 @@
 Summary:       HardWare LiSter
 Name:          lshw
 Version:       B.02.18
-Release:       13%{?dist}
+Release:       7%{?dist}
 License:       GPLv2
 Group:         Applications/System
 URL:           http://ezix.org/project/wiki/HardwareLiSter
@@ -72,27 +72,11 @@ Patch59:       0022-dmi-x86-64-is-a-misnomer-for-64-bit-CPU-capability-6.patch
 Patch60:       0023-dmi-avoid-creating-multiple-memory-nodes-700.patch
 Patch61:       0025-scsi-initialize-parent-inside-the-loop-692.patch
 Patch62:       0026-sysfs-businfo-for-USB-devices-692.patch
+Patch63:       0001-lshw-Parse-OPAL-firmware-properties-from-the-device-.patch
 Patch64:       0001-Add-a-new-element-vendor_id.patch
 Patch65:       0001-Revert-better-handling-of-whole-disk-volumes.patch
-Patch66:       0001-merge-Petr-Oros-pull-request.patch
+Patch66:       0001-Proper-detect-vendor_id-device_id-for-virtual-functi.patch
 Patch67:       0001-Show-right-version-number.patch
-Patch68:       0001-Escape-special-characters-in-html-output.patch
-Patch69:       0001-cpuinfo-Fix-compiler-warnings-in-cpuinfo-code.patch
-Patch70:       0001-devtree-Check-status-property-for-caches.patch
-Patch71:       0002-devtree-Revert-vendor-property-for-Power-System.patch
-Patch72:       0003-devtree-Parse-spd-data.patch
-Patch73:       0004-cpuinfo-Do-not-enable-cpu-node-on-IBM-Power-System.patch
-Patch74:       0005-devtree-Add-vendor-field-for-cpu-node.patch
-Patch75:       0001-Add-support-for-gzip-compressed-data-files.patch
-Patch76:       0002-merge-Github-PR36.patch
-Patch77:       0003-Github-PR39-support-for-OpenEmbedded-Yocto.patch
-Patch78:       0004-merge-Github-PR-40-and-41.patch
-Patch79:       0005-Avoid-very-long-IDE-programming-interface-names-as-c.patch
-Patch80:       0006-Set-powerpc-logo-hint.patch
-Patch81:       0007-Fix-DIMM-info-for-older-IBM-POWER-systems.patch
-Patch82:       0008-apply-Github-PR42.patch
-Patch83:       0009-add-Hygon-company-description-for-Hygon-CPU-VendorID.patch
-Patch84:       0010-update-id-files.patch
 
 BuildRequires: sqlite-devel
 Requires:      hwdata
@@ -198,27 +182,11 @@ http://lshw.ezix.org/
 %patch60 -p1
 %patch61 -p1
 %patch62 -p1
+%patch63 -p1
 %patch64 -p1
 %patch65 -p1
 %patch66 -p1
 %patch67 -p1
-%patch68 -p1
-%patch69 -p1
-%patch70 -p1
-%patch71 -p1
-%patch72 -p1
-%patch73 -p1
-%patch74 -p1
-%patch75 -p1
-%patch76 -p1
-%patch77 -p1
-%patch78 -p1
-%patch79 -p1
-%patch80 -p1
-%patch81 -p1
-%patch82 -p1
-%patch83 -p1
-%patch84 -p1
 
 %build
 make %{?_smp_mflags} SBINDIR="%{_sbindir}" RPM_OPT_FLAGS="%{optflags}" SQLITE=1 gui
@@ -288,32 +256,6 @@ rm -rf %{buildroot}%{_datadir}/locale/fr/
 %{_datadir}/polkit-1/actions/org.ezix.lshw.gui.policy
 
 %changelog
-* Thu Feb 21 2019 Lianbo Jiang <lijiang@redhat.com> - B.02.18-13
-- Sync lshw package to the latest version
-- Resolves: #1640692
-
-* Thu Feb 08 2018 Petr Oros <poros@redhat.com> - B.02.18-12
-- Put back Add parsed firmware version info patch
-- Resolves: #1536391
-
-* Wed Jan 31 2018 Petr Oros <poros@redhat.com> - B.02.18-11
-- Add fixes for POWER9 support
-- Resolves: #1537484
-
-* Wed Sep 13 2017 Petr Oros <poros@redhat.com> - B.02.18-10
-- Fix Petitboot System Information output
-- Fix compiler warnings
-- Resolves: #1536391
-
-* Mon Aug 21 2017 Petr Oros <poros@redhat.com> - B.02.18-9
-- Escape special characters in html output
-- Resolves: #1446765
-
-* Mon Aug 7 2017 Petr Oros <poros@redhat.com> - B.02.18-8
-- Proper detect vendor_id/device_id for virtual functions
-- Sync SMBIOS with latest specification
-- Resolves: #1445473
-
 * Tue May 16 2017 Petr Oros <poros@redhat.com> - B.02.18-7
 - Revert Fix JSON output format
 - Show right version number
