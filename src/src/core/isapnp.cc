@@ -12,7 +12,7 @@
 #include "isapnp.h"
 #include "pnp.h"
 
-__ID("@(#) $Id: isapnp.cc 1936 2008-03-23 12:29:29Z lyonel $");
+__ID("@(#) $Id$");
 
 #ifdef __i386__
 

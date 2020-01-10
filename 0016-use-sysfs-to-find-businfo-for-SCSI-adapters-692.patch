@@ -1,0 +1,70 @@
+From 079afcfb3f9568a031ae6149438d0289e745c42b Mon Sep 17 00:00:00 2001
+From: Dan Callaghan <dcallagh@redhat.com>
+Date: Fri, 10 Jul 2015 16:33:57 +1000
+Subject: [PATCH 16/26] use sysfs to find businfo for SCSI adapters (#692)
+
+In spite of its name, the SCSI_IOCTL_GET_PCI ioctl will actually return
+the kernel name for the underlying SCSI adapter no matter whether it's
+on the PCI bus or not. For example an IBM VIO SCSI adapter on the vio
+bus might return 30000002 for this ioctl.
+
+Since this doesn't look like a PCI bus address, the guessBusInfo()
+function would then make a bad guess, returning businfo as
+parisc@30000002 which is not right.
+
+We can figure out the right businfo without guessing by looking in sysfs
+instead.
+---
+ src/core/scsi.cc | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/core/scsi.cc b/src/core/scsi.cc
+index 4aaec81..229d3a2 100644
+--- a/src/core/scsi.cc
++++ b/src/core/scsi.cc
+@@ -659,9 +659,9 @@ static void scan_sg(hwNode & n)
+   int sg;
+   int fd = -1;
+   My_sg_scsi_id m_id;
+-  char slot_name[64];                             // should be 16 but some 2.6 kernels require 32 bytes
+   string host = "";
+   string businfo = "";
++  string adapter_businfo = "";
+   hwNode *parent = NULL;
+   int emulated = 0;
+   bool ghostdeventry = false;
+@@ -696,6 +696,9 @@ static void scan_sg(hwNode & n)
+ 
+   host = host_logicalname(m_id.host_no);
+   businfo = scsi_businfo(m_id.host_no);
++  adapter_businfo =
++      sysfs::entry::byClass("scsi_host", host_kname(m_id.host_no))
++      .parent().businfo();
+ 
+   hwNode device = hwNode("generic");
+ 
+@@ -752,10 +755,9 @@ static void scan_sg(hwNode & n)
+   if ((m_id.scsi_type == 0) || (m_id.scsi_type == 7) || (m_id.scsi_type == 14))
+     scan_disk(device);
+ 
+-  memset(slot_name, 0, sizeof(slot_name));
+-  if (ioctl(fd, SCSI_IOCTL_GET_PCI, slot_name) >= 0)
++  if (!adapter_businfo.empty())
+   {
+-    parent = n.findChildByBusInfo(guessBusInfo(hw::strip(slot_name)));
++    parent = n.findChildByBusInfo(adapter_businfo);
+   }
+ 
+   if (!parent)
+@@ -785,7 +787,7 @@ static void scan_sg(hwNode & n)
+   {
+ 
+   if(parent->getBusInfo() == "")
+-    parent->setBusInfo(guessBusInfo(hw::strip(slot_name)));
++    parent->setBusInfo(adapter_businfo);
+   parent->setLogicalName(host);
+   parent->claim();
+ 
+-- 
+2.10.2
+

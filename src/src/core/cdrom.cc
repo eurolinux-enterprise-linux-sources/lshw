@@ -26,7 +26,7 @@
 #include <limits.h>
 #include <linux/cdrom.h>
 
-__ID("@(#) $Id: cdrom.cc 1923 2008-02-10 23:04:53Z lyonel $");
+__ID("@(#) $Id$");
 
 #ifndef CDC_CD_R
 #define CDC_CD_R 0x2000

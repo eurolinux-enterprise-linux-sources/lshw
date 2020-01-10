@@ -16,7 +16,7 @@
 #include <locale.h>
 #endif
 
-__ID("@(#) $Id: lshw.cc 2327 2010-10-04 22:13:22Z lyonel $");
+__ID("@(#) $Id$");
 
 void usage(const char *progname)
 {
@@ -46,6 +46,7 @@ void usage(const char *progname)
   fprintf(stderr, _("\t-quiet          don't display status\n"));
   fprintf(stderr, _("\t-sanitize       sanitize output (remove sensitive information like serial numbers, etc.)\n"));
   fprintf(stderr, _("\t-numeric        output numeric IDs (for PCI, USB, etc.)\n"));
+  fprintf(stderr, _("\t-notime         exclude volatile attributes (timestamps) from output\n"));
   fprintf(stderr, "\n");
 }
 
@@ -92,6 +93,7 @@ char **argv)
   disable("output:quiet");
   disable("output:sanitize");
   disable("output:numeric");
+  enable("output:time");
 
 // define some aliases for nodes classes
   alias("disc", "disk");
@@ -191,6 +193,12 @@ char **argv)
     {
       enable("output:numeric");
       validoption = true;
+    }
+
+    if (strcmp(argv[1], "-notime") == 0)
+    {
+        disable("output:time");
+        validoption = true;
     }
 
     if(validoption)

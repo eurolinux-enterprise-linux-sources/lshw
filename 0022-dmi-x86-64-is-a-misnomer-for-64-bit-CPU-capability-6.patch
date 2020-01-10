@@ -1,0 +1,29 @@
+From 1099dfa2eafdb65493e2763aa099f1f991a1df64 Mon Sep 17 00:00:00 2001
+From: Dan Callaghan <dcallagh@redhat.com>
+Date: Wed, 15 Jul 2015 15:22:01 +1000
+Subject: [PATCH 22/26] dmi: "x86-64" is a misnomer for 64-bit CPU capability
+ (#698)
+
+The "64-bit capable" bit can also be set for CPUs which are not
+x86-based, like Itanium and ARM. Changed it to "lm" (long mode) instead
+which matches the existing Linux CPU flag.
+---
+ src/core/dmi.cc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/core/dmi.cc b/src/core/dmi.cc
+index ced891a..8242fed 100644
+--- a/src/core/dmi.cc
++++ b/src/core/dmi.cc
+@@ -1185,7 +1185,7 @@ int dmiversionmin)
+             if (data[0x25] != 0)
+ 		newnode.setConfig("threads", data[0x25]);
+             if (data[0x26] & 0x4)
+-		newnode.addCapability("x86-64", "64bits extensions (x86-64)");
++		newnode.addCapability("lm", _("64-bit capable"));
+           }
+ 
+           newnode.setHandle(handle);
+-- 
+2.10.2
+

@@ -23,7 +23,7 @@
 #endif
 
 
-static char versiontag[] = "@(#) $URL: https://ezix.org/source/packages/lshw/releases/B.02.17/src/core/version.cc $ >";
+static char versiontag[] = "@(#) $URL$ >";
 
 const char *getpackageversion()
 {

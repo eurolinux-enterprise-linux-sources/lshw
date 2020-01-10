@@ -14,11 +14,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <dirent.h>
 
-__ID("@(#) $Id: cpufreq.cc 2470 2012-01-19 12:04:26Z lyonel $");
+__ID("@(#) $Id$");
 
 #define DEVICESCPUFREQ "/sys/devices/system/cpu/cpu%d/cpufreq/"
 
@@ -58,11 +59,9 @@ bool scan_cpufreq(hwNode & node)
     snprintf(buffer, sizeof(buffer), DEVICESCPUFREQ, i);
     if(exists(buffer))
     {
-      unsigned long long max, min, cur;
+      unsigned long long max, cur;
       pushd(buffer);
 
-                                                  // in Hz
-      min = 1000*(unsigned long long)get_long("cpuinfo_min_freq");
                                                   // in Hz
       max = 1000*(unsigned long long)get_long("cpuinfo_max_freq");
                                                   // in Hz

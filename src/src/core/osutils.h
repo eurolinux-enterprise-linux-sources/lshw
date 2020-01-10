@@ -14,6 +14,7 @@ bool exists(const std::string & path);
 bool samefile(const std::string & path1, const std::string & path2);
 std::string readlink(const std::string & path);
 std::string realpath(const std::string & path);
+std::string dirname(const std::string & path);
 bool loadfile(const std::string & file, std::vector < std::string > &lines);
 
 size_t splitlines(const std::string & s,
@@ -30,7 +31,7 @@ std::string lowercase(const std::string &);
 std::string tostring(unsigned long long);
 std::string tohex(unsigned long long);
 std::string utf8(wchar_t);
-std::string utf8_sanitize(const std::string &);
+std::string utf8_sanitize(const std::string &, bool autotruncate = true);
 std::string utf8(uint16_t *s, ssize_t length = -1, bool forcelittleendian = false);
 
 std::string spaces(unsigned int count, const std::string & space = " ");
@@ -57,7 +58,7 @@ unsigned long le_long(const void *);
 unsigned long long be_longlong(const void *);
 unsigned long long le_longlong(const void *);
 
-int open_dev(dev_t dev, const std::string & name="");
+int open_dev(dev_t dev, int dev_type, const std::string & name="");
 
 std::string platform();
 std::string operating_system();

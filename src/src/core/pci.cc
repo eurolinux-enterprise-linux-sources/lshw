@@ -7,13 +7,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdint.h>
+#include <libgen.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <dirent.h>
 
-__ID("@(#) $Id: pci.cc 2496 2012-05-15 08:00:13Z lyonel $");
+__ID("@(#) $Id$");
 
 #define PROC_BUS_PCI "/proc/bus/pci"
 #define SYS_BUS_PCI "/sys/bus/pci"
@@ -1128,9 +1129,9 @@ bool scan_pci(hwNode & n)
           string drivername = readlink(string(devices[i]->d_name)+"/driver");
           string modulename = readlink(string(devices[i]->d_name)+"/driver/module");
 
-          device->setConfig("driver", basename(drivername.c_str()));
+          device->setConfig("driver", basename(const_cast<char *>(drivername.c_str())));
           if(exists(modulename))
-            device->setConfig("module", basename(modulename.c_str()));
+            device->setConfig("module", basename(const_cast<char *>(modulename.c_str())));
 
           if(exists(string(devices[i]->d_name)+"/rom"))
           {

@@ -23,7 +23,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-__ID("@(#) $Id: mem.cc 2129 2009-10-06 16:52:47Z lyonel $");
+__ID("@(#) $Id$");
 
 static unsigned long long get_kcore_size()
 {

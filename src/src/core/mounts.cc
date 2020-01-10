@@ -16,7 +16,7 @@
 #include <unistd.h>
 
 
-__ID("@(#) $Id: mounts.cc 2066 2009-02-12 19:24:33Z lyonel $");
+__ID("@(#) $Id$");
 
 #define MOUNTS "/proc/mounts"
 

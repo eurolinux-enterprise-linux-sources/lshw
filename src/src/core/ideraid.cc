@@ -24,7 +24,7 @@
 #include <linux/hdreg.h>
 #include <regex.h>
 
-__ID("@(#) $Id: ideraid.cc 1923 2008-02-10 23:04:53Z lyonel $");
+__ID("@(#) $Id$");
 
 #define DEV_TWE "/dev/twe"
 

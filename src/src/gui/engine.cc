@@ -13,7 +13,7 @@
 #include <string.h>
 #include <libgen.h>
 
-static const char *id = "@(#) $Id: engine.cc 2414 2011-08-31 22:39:36Z lyonel $";
+static const char *id = "@(#) $Id$";
 
 extern "C"
 {

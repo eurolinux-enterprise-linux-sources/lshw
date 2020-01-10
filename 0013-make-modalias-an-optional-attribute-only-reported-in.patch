@@ -1,0 +1,119 @@
+From 5c3a4d5e7548bbf215eae4524ec0fb7fe5bf5634 Mon Sep 17 00:00:00 2001
+From: Lyonel Vincent <lyonel@ezix.org>
+Date: Wed, 17 Aug 2016 17:09:04 +0200
+Subject: [PATCH 13/43] make `modalias` an (optional) attribute only reported
+ in XML for now
+
+---
+ docs/lshw.xsd       |  1 +
+ src/core/hw.cc      | 21 +++++++++++++++++++--
+ src/core/hw.h       |  3 +++
+ src/core/network.cc |  4 +---
+ src/core/pci.cc     |  4 +---
+ 5 files changed, 25 insertions(+), 8 deletions(-)
+
+diff --git a/docs/lshw.xsd b/docs/lshw.xsd
+index b46a33e..b513fa2 100644
+--- a/docs/lshw.xsd
++++ b/docs/lshw.xsd
+@@ -33,6 +33,7 @@
+     <xs:attribute name="class" type="xs:string" minOccurs="0" />
+     <xs:attribute name="claimed" type="xs:boolean" minOccurs="0" />
+     <xs:attribute name="disabled" type="xs:boolean" minOccurs="0" />
++    <xs:attribute name="modalias" type="xs:string" minOccurs="0" />
+   </xs:complexType>
+ 
+   <xs:complexType name="measured">
+diff --git a/src/core/hw.cc b/src/core/hw.cc
+index e2559ff..68e5912 100644
+--- a/src/core/hw.cc
++++ b/src/core/hw.cc
+@@ -28,7 +28,7 @@ struct hwNode_i
+ {
+   hwClass deviceclass;
+   string id, vendor, product, version, date, serial, slot, handle, description,
+-    businfo, physid, dev;
++    businfo, physid, dev, modalias;
+   bool enabled;
+   bool claimed;
+   unsigned long long start;
+@@ -478,6 +478,22 @@ void hwNode::setSlot(const string & slot)
+ }
+ 
+ 
++string hwNode::getModalias() const
++{
++  if (This)
++    return This->modalias;
++  else
++    return "";
++}
++
++
++void hwNode::setModalias(const string & modalias)
++{
++  if (This)
++    This->modalias = strip(modalias);
++}
++
++
+ unsigned long long hwNode::getStart() const
+ {
+   if (This)
+@@ -1670,7 +1686,8 @@ string hwNode::asXML(unsigned level)
+       out << " claimed=\"true\"";
+ 
+     out << " class=\"" << getClassName() << "\"";
+-    out << " handle=\"" << getHandle() << "\"";
++    if(getHandle()!="") out << " handle=\"" << escape(getHandle()) << "\"";
++    if(getModalias()!="") out << " modalias=\"" << escape(getModalias()) << "\"";
+     out << ">" << endl;
+ 
+     if (getDescription() != "")
+diff --git a/src/core/hw.h b/src/core/hw.h
+index 4211a82..6454a4d 100644
+--- a/src/core/hw.h
++++ b/src/core/hw.h
+@@ -154,6 +154,9 @@ class hwNode
+     string getSlot() const;
+     void setSlot(const string & slot);
+ 
++    string getModalias() const;
++    void setModalias(const string & modalias);
++
+     unsigned int countChildren(hw::hwClass c = hw::generic) const;
+     hwNode * getChild(unsigned int);
+     hwNode * getChildByPhysId(long);
+diff --git a/src/core/network.cc b/src/core/network.cc
+index 1d54959..e4d667f 100644
+--- a/src/core/network.cc
++++ b/src/core/network.cc
+@@ -338,9 +338,7 @@ bool scan_network(hwNode & n)
+       string businfo = sysfs::entry::byClass("net", interface.getLogicalName()).businfo();
+       if (businfo!="")
+         interface.setBusInfo(businfo);
+-      string modalias = sysfs::entry::byClass("net", interface.getLogicalName()).modalias();
+-      if (modalias!="")
+-        interface.setConfig("modalias", modalias);
++      interface.setModalias(sysfs::entry::byClass("net", interface.getLogicalName()).modalias());
+ 
+ //scan_mii(fd, interface);
+       scan_ip(interface);
+diff --git a/src/core/pci.cc b/src/core/pci.cc
+index f667f89..0d02b31 100644
+--- a/src/core/pci.cc
++++ b/src/core/pci.cc
+@@ -1148,9 +1148,7 @@ bool scan_pci(hwNode & n)
+           device->claim();
+         }
+ 
+-	string modalias = sysfs::entry::byBus("pci", devices[i]->d_name).modalias();
+-	if(modalias!="")
+-		device->setConfig("modalias", modalias);
++	device->setModalias(sysfs::entry::byBus("pci", devices[i]->d_name).modalias());
+ 
+         if(exists(resourcename))
+         {
+-- 
+2.10.2
+

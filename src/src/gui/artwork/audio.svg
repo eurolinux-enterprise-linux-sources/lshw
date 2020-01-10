@@ -86,7 +86,7 @@
            id="license2918"
            rdf:resource="http://creativecommons.org/licenses/GPL/2.0/" />
         <dc:source
-           id="source1314">$Id: audio.svg 1822 2007-08-07 19:51:34Z lyonel $</dc:source>
+           id="source1314">$Id$</dc:source>
       </cc:Work>
       <cc:License
          rdf:about="http://creativecommons.org/licenses/GPL/2.0/"

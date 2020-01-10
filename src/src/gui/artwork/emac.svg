@@ -173,7 +173,7 @@
           </cc:Agent>
         </dc:publisher>
         <dc:identifier>emac</dc:identifier>
-        <dc:source>$Id: emac.svg 1822 2007-08-07 19:51:34Z lyonel $</dc:source>
+        <dc:source>$Id$</dc:source>
         <dc:language>C</dc:language>
         <dc:subject>
           <rdf:Bag>

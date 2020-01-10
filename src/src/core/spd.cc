@@ -10,7 +10,7 @@
 #include <dirent.h>
 #include <stdio.h>
 
-__ID("@(#) $Id: spd.cc 1936 2008-03-23 12:29:29Z lyonel $");
+__ID("@(#) $Id$");
 
 /* SPD is 2048-bit long */
 #define SPD_MAXSIZE (2048/8)

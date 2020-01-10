@@ -86,7 +86,7 @@
         </dc:subject>
         <cc:license
            rdf:resource="http://creativecommons.org/licenses/GPL/2.0/" />
-        <dc:source>$Id: radio.svg 2070 2009-02-18 22:38:07Z lyonel $</dc:source>
+        <dc:source>$Id$</dc:source>
       </cc:Work>
       <cc:License
          rdf:about="http://creativecommons.org/licenses/GPL/2.0/">

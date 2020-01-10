@@ -1,0 +1,32 @@
+From bf17bd533103c63fdec46153d6c329f6af16c0e8 Mon Sep 17 00:00:00 2001
+From: Lyonel Vincent <lyonel@ezix.org>
+Date: Thu, 20 Oct 2016 16:41:19 +0200
+Subject: [PATCH 19/43] fix #727 (GUI build issue with SQLite)
+
+---
+ src/gui/Makefile | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/gui/Makefile b/src/gui/Makefile
+index 7f72e3f..2526c18 100644
+--- a/src/gui/Makefile
++++ b/src/gui/Makefile
+@@ -9,9 +9,15 @@ DEFINES=-DPREFIX=\"$(PREFIX)\" -DSBINDIR=\"$(SBINDIR)\" -DMANDIR=\"$(MANDIR)\" -
+ GTKINCLUDES=$(shell pkg-config gtk+-2.0 --cflags)
+ INCLUDES=-I../core $(GTKINCLUDES)
+ CXXFLAGS=-g -Wall $(INCLUDES) $(DEFINES) $(RPM_OPT_FLAGS)
++ifeq ($(SQLITE), 1)
++	CXXFLAGS+= -DSQLITE $(shell pkg-config --cflags sqlite3)
++endif
+ CFLAGS=$(CXXFLAGS) $(DEFINES)
+ GTKLIBS=$(shell pkg-config gtk+-2.0 gmodule-2.0 --libs)
+ LIBS+=-L../core -llshw -lresolv $(GTKLIBS)
++ifeq ($(SQLITE), 1)
++	LIBS+= $(shell pkg-config --libs sqlite3)
++endif
+ LDFLAGS=
+ ifneq ($(shell $(LD) --help 2| grep -- --as-needed), )
+ 	LDFLAGS+= -Wl,--as-needed
+-- 
+2.10.2
+

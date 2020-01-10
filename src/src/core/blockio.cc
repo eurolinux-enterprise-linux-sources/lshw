@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-__ID("@(#) $Id: blockio.cc 1923 2008-02-10 23:04:53Z lyonel $");
+__ID("@(#) $Id$");
 
 ssize_t readlogicalblocks(source & s,
 void * buffer,

@@ -7,7 +7,7 @@
 #include "stock.h"
 #include "engine.h"
 
-static char *id = "@(#) $Id: gtk-lshw.c 2412 2011-08-31 16:46:41Z lyonel $";
+static char *id = "@(#) $Id$";
 
 extern GtkWidget *mainwindow;
 

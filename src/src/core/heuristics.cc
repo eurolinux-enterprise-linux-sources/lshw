@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <regex.h>
 
-__ID("@(#) $Id: heuristics.cc 2150 2010-03-14 22:30:50Z lyonel $");
+__ID("@(#) $Id$");
 
 string guessBusInfo(const string & info)
 {
@@ -141,7 +141,7 @@ bool guessVendor(hwNode & device)
 
 static string parsehex(const string & s)
 {
-  int i = 0;
+  unsigned int i = 0;
   string result = "";
 
   if(matches(s,"^0x[[:xdigit:]][[:xdigit:]]+$"))

@@ -1,0 +1,25 @@
+From a7f65c0f1b5d1629c0d2b6d8310e90ec63abcd9b Mon Sep 17 00:00:00 2001
+From: Matt Jia <mjia@redhat.com>
+Date: Mon, 18 May 2015 11:08:10 +1000
+Subject: [PATCH 02/26] also output subsystem info for PCI host bridges (#611)
+
+---
+ src/core/pci.cc | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/core/pci.cc b/src/core/pci.cc
+index 85a5481..d9a2cd8 100644
+--- a/src/core/pci.cc
++++ b/src/core/pci.cc
+@@ -808,6 +808,8 @@ static hwNode *scan_pci_dev(struct pci_dev &d, hwNode & n)
+         host.setDescription(get_class_description(dclass, progif));
+         host.setVendor(get_device_description(d.vendor_id)+(enabled("output:numeric")?" ["+tohex(d.vendor_id)+"]":""));
+         host.setProduct(get_device_description(d.vendor_id, d.device_id)+(enabled("output:numeric")?" ["+tohex(d.vendor_id)+":"+tohex(d.device_id)+"]":""));
++        host.setSubsysVendor(get_device_description(subsys_v)+(enabled("output:numeric")?" ["+tohex(subsys_v)+"]":""));
++        host.setSubsysProduct(get_device_description(subsys_v, subsys_d)+(enabled("output:numeric")?" ["+tohex(subsys_v)+":"+tohex(subsys_d)+"]":""));
+         host.setHandle(pci_bushandle(d.bus, d.domain));
+         host.setVersion(revision);
+         addHints(host, d.vendor_id, d.device_id, subsys_v, subsys_d, dclass);
+-- 
+2.10.2
+

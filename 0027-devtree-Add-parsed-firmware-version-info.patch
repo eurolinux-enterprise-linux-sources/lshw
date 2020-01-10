@@ -1,0 +1,85 @@
+From 3abc9878e862d3401f2e5b3eb9e507f10bad7e2e Mon Sep 17 00:00:00 2001
+From: Jack Miller <jack@codezen.org>
+Date: Tue, 23 Aug 2016 15:18:47 -0500
+Subject: [PATCH 27/43] devtree: Add parsed firmware version info
+
+We have /ibm,firmware-versions node in device tree ..which contains
+various firmware version information.
+
+Property name represents firmware component and property value
+represents the version.
+
+This patch adds support to parse above information on Power System.
+
+Sample output:
+     *-firmware:0
+          description: buildroot
+          physical id: 1
+          version: 211bd05
+     *-firmware:1
+          description: capp-ucode
+          physical id: 2
+          version: 1bb7503
+
+Signed-off-by: Jack Miller <jack@codezen.org>
+[Minor code cleanup, updated description - Vasant]
+Signed-off-by: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
+---
+ src/core/device-tree.cc | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index d61347b..0bba4e9 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -218,6 +218,39 @@ static void scan_devtree_bootrom(hwNode & core)
+   }
+ }
+ 
++static void scan_devtree_firmware_powernv(hwNode & core)
++{
++  int n;
++  struct dirent **namelist;
++
++  if (!exists(DEVICETREE "/ibm,firmware-versions"))
++    return;
++
++  pushd(DEVICETREE "/ibm,firmware-versions");
++  n = scandir(".", &namelist, selectfile, alphasort);
++  popd();
++
++  if (n <= 0)
++    return;
++
++  for (int i = 0; i < n; i++)
++  {
++    string sname = string(namelist[i]->d_name);
++    string fullpath = string(DEVICETREE) + "/ibm,firmware-versions/" + sname;
++
++    if (sname != "linux,phandle" && sname != "name" && sname != "phandle")
++    {
++      hwNode fwnode("firmware");
++      fwnode.setDescription(sname);
++      fwnode.setVersion(hw::strip(get_string(fullpath)));
++      fwnode.claim();
++      core.addChild(fwnode);
++    }
++    free(namelist[i]);
++  }
++
++  free(namelist);
++}
+ 
+ static string cpubusinfo(int cpu)
+ {
+@@ -1111,6 +1144,7 @@ bool scan_device_tree(hwNode & n)
+       scan_devtree_root(*core);
+       scan_devtree_cpu_power(*core);
+       scan_devtree_memory_powernv(*core);
++      scan_devtree_firmware_powernv(*core);
+       n.addCapability("powernv", "Non-virtualized");
+       n.addCapability("opal", "OPAL firmware");
+     }
+-- 
+2.10.2
+

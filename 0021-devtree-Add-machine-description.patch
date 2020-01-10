@@ -1,0 +1,41 @@
+From 1fee4c448ea6932fb3a01e866ce4b1741f26c6bb Mon Sep 17 00:00:00 2001
+From: Chandni Verma <chandni@linux.vnet.ibm.com>
+Date: Thu, 20 Oct 2016 12:12:13 +0530
+Subject: [PATCH 21/43] devtree: Add machine description
+
+Add machine description for PowerNV and pseries LPAR platform.
+
+PowerNV = Power Non Virtualized
+pSeries LPAR = Linux running on PowerVM LPAR
+
+Signed-off-by: Chandni Verma <chandni@linux.vnet.ibm.com>
+[Split original patch and created separate patch for machine
+ description - Vasant]
+Signed-off-by: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
+---
+ src/core/device-tree.cc | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index b8feb12..951535c 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -927,6 +927,7 @@ bool scan_device_tree(hwNode & n)
+   {
+     n.setVendor(get_string(DEVICETREE "/vendor", "IBM"));
+     n.setProduct(get_string(DEVICETREE "/model-name"));
++    n.setDescription("PowerNV");
+     if (core)
+     {
+       core->addHint("icon", string("board"));
+@@ -983,6 +984,7 @@ bool scan_device_tree(hwNode & n)
+       scan_devtree_root(*core);
+       scan_devtree_bootrom(*core);
+       if (exists(DEVICETREE "/ibm,lpar-capable")) {
++        n.setDescription("pSeries LPAR");
+         scan_devtree_cpu_power(*core);
+         scan_devtree_memory(*core);
+       }
+-- 
+2.10.2
+

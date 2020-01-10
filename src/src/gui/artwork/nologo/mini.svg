@@ -142,7 +142,7 @@
           </cc:Agent>
         </dc:publisher>
         <dc:identifier>mini</dc:identifier>
-        <dc:source>$Id: mini.svg 1824 2007-08-07 19:54:21Z lyonel $</dc:source>
+        <dc:source>$Id$</dc:source>
         <dc:language>C</dc:language>
         <dc:subject>
           <rdf:Bag>

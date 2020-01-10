@@ -1,0 +1,376 @@
+From 51610718fd45b65d4cf458371e4d3b243dd8631f Mon Sep 17 00:00:00 2001
+From: Dan Callaghan <dcallagh@redhat.com>
+Date: Mon, 13 Jul 2015 14:32:12 +1000
+Subject: [PATCH 17/26] scan S/390 devices in sysfs (#693)
+
+---
+ src/core/Makefile |   6 +--
+ src/core/dasd.cc  |  83 -----------------------------
+ src/core/dasd.h   |   7 ---
+ src/core/main.cc  |   7 +--
+ src/core/s390.cc  | 156 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/core/s390.h   |   7 +++
+ src/core/sysfs.cc |  11 ++++
+ 7 files changed, 181 insertions(+), 96 deletions(-)
+ delete mode 100644 src/core/dasd.cc
+ delete mode 100644 src/core/dasd.h
+ create mode 100644 src/core/s390.cc
+ create mode 100644 src/core/s390.h
+
+diff --git a/src/core/Makefile b/src/core/Makefile
+index 643067b..2d95a80 100644
+--- a/src/core/Makefile
++++ b/src/core/Makefile
+@@ -8,7 +8,7 @@ LDFLAGS=
+ LDSTATIC=
+ LIBS=
+ 
+-OBJS = hw.o main.o print.o mem.o dmi.o device-tree.o cpuinfo.o osutils.o pci.o version.o cpuid.o ide.o cdrom.o pcmcia-legacy.o scsi.o dasd.o disk.o spd.o network.o isapnp.o pnp.o fb.o options.o usb.o sysfs.o display.o heuristics.o parisc.o cpufreq.o partitions.o blockio.o lvm.o ideraid.o pcmcia.o volumes.o mounts.o smp.o abi.o jedec.o dump.o fat.o virtio.o vio.o
++OBJS = hw.o main.o print.o mem.o dmi.o device-tree.o cpuinfo.o osutils.o pci.o version.o cpuid.o ide.o cdrom.o pcmcia-legacy.o scsi.o s390.o disk.o spd.o network.o isapnp.o pnp.o fb.o options.o usb.o sysfs.o display.o heuristics.o parisc.o cpufreq.o partitions.o blockio.o lvm.o ideraid.o pcmcia.o volumes.o mounts.o smp.o abi.o jedec.o dump.o fat.o virtio.o vio.o
+ ifeq ($(SQLITE), 1)
+ 	OBJS+= db.o
+ endif
+@@ -37,7 +37,7 @@ hw.o: hw.h osutils.h version.h config.h options.h heuristics.h
+ main.o: hw.h print.h version.h options.h mem.h dmi.h cpuinfo.h cpuid.h
+ main.o: device-tree.h pci.h pcmcia.h pcmcia-legacy.h ide.h scsi.h spd.h
+ main.o: network.h isapnp.h fb.h usb.h sysfs.h display.h parisc.h cpufreq.h
+-main.o: ideraid.h mounts.h smp.h abi.h dasd.h virtio.h pnp.h vio.h
++main.o: ideraid.h mounts.h smp.h abi.h s390.h virtio.h pnp.h vio.h
+ print.o: print.h hw.h options.h version.h osutils.h config.h
+ mem.o: version.h config.h mem.h hw.h
+ dmi.o: version.h config.h dmi.h hw.h osutils.h
+@@ -75,6 +75,6 @@ mounts.o: version.h mounts.h hw.h osutils.h
+ smp.o: version.h smp.h hw.h osutils.h
+ abi.o: version.h abi.h hw.h osutils.h
+ jedec.o: jedec.h
+-dasd.o: dasd.h disk.h hw.h osutils.h
++s390.o: hw.h sysfs.h disk.h s390.h
+ virtio.o: version.h hw.h sysfs.h disk.h virtio.h
+ vio.o: version.h hw.h sysfs.h vio.h
+diff --git a/src/core/dasd.cc b/src/core/dasd.cc
+deleted file mode 100644
+index 626b8a8..0000000
+--- a/src/core/dasd.cc
++++ /dev/null
+@@ -1,83 +0,0 @@
+-#include "disk.h"
+-#include "osutils.h"
+-#include "dasd.h"
+-#include <glob.h>
+-#include <string.h>
+-#include <fcntl.h>
+-#include <unistd.h>
+-#include <inttypes.h>
+-#include <sys/ioctl.h>
+-#include <linux/fs.h>
+-#include <map>
+-
+-using namespace std;
+-
+-/*Read only block devices, not partitions*/
+-#define DEV_PATTERN "/dev/dasd[a-z]"
+-#define SYSFS_PREFIX "/sys/block/"
+-
+-bool scan_dasd(hwNode & n)
+-{
+-  size_t dev_num;
+-  char *dev_name;
+-  glob_t devices;
+-  uint64_t capacity;
+-
+-  /* These correspond to filenames in the device/ sub-directory
+-     of each device
+-     To read other attributes, simply add the attribute here and modify the device object
+-     appropriately.
+-  */
+-  const char* attribs[] = {"devtype", "vendor"};
+-
+-  std::vector<std::string> sysfs_attribs(attribs, attribs+2);
+-  std::map<std::string, std::string> dasd_attribs;
+-
+-  hwNode *core = n.getChild("core");
+-
+-  /* Probe the sysfs for this device*/
+-  if(glob(DEV_PATTERN, 0, NULL, &devices)!=0)
+-    return false;
+-  else
+-  {
+-    for(dev_num=0;dev_num<devices.gl_pathc;dev_num++)
+-    {
+-      dev_name = basename(devices.gl_pathv[dev_num]);
+-      for (std::vector<std::string>::iterator it = sysfs_attribs.begin(); it != sysfs_attribs.end(); ++it)
+-      {
+-        std::string attrib_fname = std::string(SYSFS_PREFIX) + dev_name + "/device/" + *it;
+-        std::vector<std::string> lines;
+-        if (loadfile(attrib_fname, lines) && (lines.size() > 0))
+-        {
+-          dasd_attribs[*it] = lines[0];
+-        }
+-        else
+-        {
+-          dasd_attribs[*it] = " ";
+-        }
+-      }
+-
+-      hwNode device = hwNode("disk", hw::disk);
+-      device.setDescription("DASD Device");
+-      device.setVendor(dasd_attribs["vendor"]);
+-      device.setProduct(dasd_attribs["devtype"]);
+-      device.setLogicalName(devices.gl_pathv[dev_num]);
+-
+-      /* Get the capacity*/
+-      int fd = open(devices.gl_pathv[dev_num], O_RDONLY|O_NONBLOCK);
+-      if (ioctl(fd, BLKGETSIZE64, &capacity) != 0)
+-        capacity=0;
+-      close(fd);
+-
+-      device.setSize(capacity);
+-
+-      /* Non-determinant*/
+-      device.setPhysId(0);
+-      scan_disk(device);
+-
+-      hwNode *parent = core->addChild(device);
+-      parent->claim();
+-    }
+-  }
+-  return true;
+-}
+diff --git a/src/core/dasd.h b/src/core/dasd.h
+deleted file mode 100644
+index ad11c18..0000000
+--- a/src/core/dasd.h
++++ /dev/null
+@@ -1,7 +0,0 @@
+-#ifndef _DASD_H_
+-#define _DASD_H_
+-
+-#include "hw.h"
+-
+-bool scan_dasd(hwNode & n);
+-#endif
+diff --git a/src/core/main.cc b/src/core/main.cc
+index 3c88f4c..c9a6e44 100644
+--- a/src/core/main.cc
++++ b/src/core/main.cc
+@@ -45,7 +45,7 @@
+ #include "vio.h"
+ #include "smp.h"
+ #include "abi.h"
+-#include "dasd.h"
++#include "s390.h"
+ 
+ #include <unistd.h>
+ #include <stdio.h>
+@@ -132,8 +132,9 @@ bool scan_system(hwNode & system)
+     status("SCSI");
+     if (enabled("scsi"))
+       scan_scsi(computer);
+-    if (enabled("dasd"))
+-      scan_dasd(computer);
++    status("S/390 devices");
++    if (enabled("s390"))
++      scan_s390_devices(computer);
+     if (enabled("mounts"))
+       scan_mounts(computer);
+     status("Network interfaces");
+diff --git a/src/core/s390.cc b/src/core/s390.cc
+new file mode 100644
+index 0000000..81b2740
+--- /dev/null
++++ b/src/core/s390.cc
+@@ -0,0 +1,156 @@
++#include "hw.h"
++#include "sysfs.h"
++#include "disk.h"
++#include "s390.h"
++#include <string.h>
++
++using namespace std;
++
++struct ccw_device_def {
++  const char *cutype;
++  const char *devtype;
++  const char *description;
++  hw::hwClass hwClass;
++};
++struct ccw_device_def ccw_device_defs[] =
++{
++  {"1403", "", "Line printer", hw::printer},
++  {"1731/01", "1732/01", "OSA-Express QDIO channel", hw::network},
++  {"1731/02", "1732/02", "OSA-Express intraensemble data network (IEDN) channel", hw::network},
++  {"1731/02", "1732/03", "OSA-Express intranode management network (NMN) channel", hw::network},
++  {"1731/05", "1732/05", "HiperSockets network", hw::network},
++  {"1731/06", "1732/06", "OSA-Express Network Control Program channel", hw::network},
++  {"1731", "1732", "Network adapter", hw::network},
++  {"1750", "3380", "Direct attached storage device (ECKD mode)", hw::disk},
++  {"1750", "3390", "Direct attached storage device (ECKD mode)", hw::disk},
++  {"2105", "3380", "Direct attached storage device (ECKD mode)", hw::disk},
++  {"2105", "3390", "Direct attached storage device (ECKD mode)", hw::disk},
++  {"2107", "3380", "Direct attached storage device (ECKD mode)", hw::disk},
++  {"2107", "3390", "Direct attached storage device (ECKD mode)", hw::disk},
++  {"2540", "", "Card reader/punch", hw::generic},
++  {"3088/01", "", "P/390 LAN channel station card", hw::communication},
++  {"3088/08", "", "Channel-to-Channel device", hw::network},
++  {"3088/1e", "", "Channel-to-Channel FICON adapter", hw::network},
++  {"3088/1f", "", "Channel-to-Channel ESCON adapter", hw::network},
++  {"3088/60", "", "LAN channel station OSA-2 card", hw::network},
++  {"3174", "", "3174 Establishment Controller", hw::generic},
++  {"3215", "", "3215 terminal", hw::communication},
++  {"3270", "", "3270 terminal", hw::communication},
++  {"3271", "", "3270 terminal", hw::communication},
++  {"3272", "", "3270 terminal", hw::communication},
++  {"3273", "", "3270 terminal", hw::communication},
++  {"3274", "", "3270 terminal", hw::communication},
++  {"3275", "", "3270 terminal", hw::communication},
++  {"3276", "", "3270 terminal", hw::communication},
++  {"3277", "", "3270 terminal", hw::communication},
++  {"3278", "", "3270 terminal", hw::communication},
++  {"3279", "", "3270 terminal", hw::communication},
++  {"3480", "3480", "3480 tape drive", hw::storage},
++  {"3490", "3490", "3490 tape drive", hw::storage},
++  {"3590", "3590", "3590 tape drive", hw::storage},
++  {"3592", "3592", "3592 tape drive", hw::storage},
++  {"3832", "", "Virtual network device", hw::network},
++  {"3880", "3370", "Direct attached storage device (FBA mode)", hw::disk},
++  {"3880", "3380", "Direct attached storage device (ECKD mode)", hw::disk},
++  {"3990", "3380", "Direct attached storage device (ECKD mode)", hw::disk},
++  {"3990", "3390", "Direct attached storage device (ECKD mode)", hw::disk},
++  {"6310", "9336", "Direct attached storage device (FBA mode)", hw::disk},
++  {"9343", "9345", "Direct attached storage device (ECKD mode)", hw::disk},
++};
++
++static void ccw_devtype(hwNode & device, string cutype, string devtype)
++{
++  for (size_t i = 0; i < sizeof(ccw_device_defs) / sizeof(ccw_device_def); i ++)
++  {
++    ccw_device_def d = ccw_device_defs[i];
++    if (cutype.compare(0, strlen(d.cutype), d.cutype) == 0 &&
++        devtype.compare(0, strlen(d.devtype), d.devtype) == 0)
++    {
++      device.setClass(d.hwClass);
++      device.setDescription(d.description);
++      break;
++    }
++  }
++  if (!devtype.empty() && devtype != "n/a")
++    device.setProduct(devtype);
++}
++
++static bool scan_ccw(hwNode & n)
++{
++  vector < sysfs::entry > entries = sysfs::entries_by_bus("ccw");
++
++  if (entries.empty())
++    return false;
++
++  for (vector < sysfs::entry >::iterator it = entries.begin();
++      it != entries.end(); ++it)
++  {
++    const sysfs::entry & e = *it;
++
++    hwNode device("device");
++
++    ccw_devtype(device, e.string_attr("cutype"), e.string_attr("devtype"));
++    string vendor = hw::strip(e.string_attr("vendor"));
++    if (!vendor.empty())
++      device.setVendor(vendor);
++
++    string businfo = e.businfo();
++    if (!businfo.empty())
++      device.setBusInfo(businfo);
++
++    if (e.string_attr("online") != "1")
++      device.disable();
++
++    string driver = e.driver();
++    if (!driver.empty())
++      device.setConfig("driver", driver);
++
++    string devname = e.name_in_class("block");
++    if (!devname.empty())
++    {
++      device.setLogicalName(devname);
++      scan_disk(device);
++    }
++
++    device.claim();
++    n.addChild(device);
++  }
++
++  return true;
++}
++
++static bool scan_iucv(hwNode & n)
++{
++  vector < sysfs::entry > entries = sysfs::entries_by_bus("iucv");
++
++  if (entries.empty())
++    return false;
++
++  for (vector < sysfs::entry >::iterator it = entries.begin();
++      it != entries.end(); ++it)
++  {
++    const sysfs::entry & e = *it;
++
++    hwNode device(e.name());
++
++    string driver = e.driver();
++    if (!driver.empty())
++      device.setConfig("driver", driver);
++    if (driver == "hvc_iucv")
++      device.setDescription("z/VM IUCV hypervisor console");
++    else
++      device.setDescription("z/VM IUCV device");
++
++    device.claim();
++    n.addChild(device);
++  }
++
++  return true;
++}
++
++bool scan_s390_devices(hwNode & n)
++{
++  scan_ccw(n);
++  scan_iucv(n);
++  return true;
++}
+diff --git a/src/core/s390.h b/src/core/s390.h
+new file mode 100644
+index 0000000..11aaec4
+--- /dev/null
++++ b/src/core/s390.h
+@@ -0,0 +1,7 @@
++#ifndef _S390_H_
++#define _S390_H_
++
++#include "hw.h"
++
++bool scan_s390_devices(hwNode & n);
++#endif
+diff --git a/src/core/sysfs.cc b/src/core/sysfs.cc
+index a2eca6c..fb7f2bb 100644
+--- a/src/core/sysfs.cc
++++ b/src/core/sysfs.cc
+@@ -149,6 +149,17 @@ static string sysfstobusinfo(const string & path)
+   if (bustype == "vio")
+     return string("vio@") + basename(path.c_str());
+ 
++  if (bustype == "ccw")
++    return string("ccw@") + basename(path.c_str());
++
++  if (bustype == "ccwgroup")
++  {
++    // just report businfo for the first device in the group
++    // because the group doesn't really fit into lshw's tree model
++    string firstdev = realpath(path + "/cdev0");
++    return sysfstobusinfo(firstdev);
++  }
++
+   return "";
+ }
+ 
+-- 
+2.10.2
+

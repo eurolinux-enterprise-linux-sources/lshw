@@ -9,7 +9,9 @@
 #include <dirent.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
+#include <libgen.h>
 #include <regex.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -20,7 +22,7 @@
 #include <linux/kdev_t.h>
 #endif
 
-__ID("@(#) $Id: osutils.cc 2417 2011-10-12 12:00:32Z lyonel $");
+__ID("@(#) $Id$");
 
 using namespace std;
 
@@ -413,6 +415,18 @@ string realpath(const string & path)
 }
 
 
+string dirname(const string & path)
+{
+  size_t len = path.length();
+  char *buffer = new char[len + 1];
+  path.copy(buffer, len);
+  buffer[len] = '\0';
+  string result = dirname(buffer);
+  delete buffer;
+  return result;
+}
+
+
 string spaces(unsigned int count, const string & space)
 {
   string result = "";
@@ -496,48 +510,48 @@ string escapecomment(const string & s)
 
 unsigned short be_short(const void * from)
 {
-  __uint8_t *p = (__uint8_t*)from;
+  uint8_t *p = (uint8_t*)from;
 
-  return ((__uint16_t)(p[0]) << 8) +
-    (__uint16_t)p[1];
+  return ((uint16_t)(p[0]) << 8) +
+    (uint16_t)p[1];
 }
 
 
 unsigned short le_short(const void * from)
 {
-  __uint8_t *p = (__uint8_t*)from;
+  uint8_t *p = (uint8_t*)from;
 
-  return ((__uint16_t)(p[1]) << 8) +
-    (__uint16_t)p[0];
+  return ((uint16_t)(p[1]) << 8) +
+    (uint16_t)p[0];
 }
 
 
 unsigned long be_long(const void * from)
 {
-  __uint8_t *p = (__uint8_t*)from;
+  uint8_t *p = (uint8_t*)from;
 
-  return ((__uint32_t)(p[0]) << 24) +
-    ((__uint32_t)(p[1]) << 16) +
-    ((__uint32_t)(p[2]) << 8) +
-    (__uint32_t)p[3];
+  return ((uint32_t)(p[0]) << 24) +
+    ((uint32_t)(p[1]) << 16) +
+    ((uint32_t)(p[2]) << 8) +
+    (uint32_t)p[3];
 }
 
 
 unsigned long le_long(const void * from)
 {
-  __uint8_t *p = (__uint8_t*)from;
+  uint8_t *p = (uint8_t*)from;
 
-  return ((__uint32_t)(p[3]) << 24) +
-    ((__uint32_t)(p[2]) << 16) +
-    ((__uint32_t)(p[1]) << 8) +
-    (__uint32_t)p[0];
+  return ((uint32_t)(p[3]) << 24) +
+    ((uint32_t)(p[2]) << 16) +
+    ((uint32_t)(p[1]) << 8) +
+    (uint32_t)p[0];
 
 }
 
 
 unsigned long long be_longlong(const void * from)
 {
-  __uint8_t *p = (__uint8_t*)from;
+  uint8_t *p = (uint8_t*)from;
 
   return ((unsigned long long)(p[0]) << 56) +
     ((unsigned long long)(p[1]) << 48) +
@@ -552,7 +566,7 @@ unsigned long long be_longlong(const void * from)
 
 unsigned long long le_longlong(const void * from)
 {
-  __uint8_t *p = (__uint8_t*)from;
+  uint8_t *p = (uint8_t*)from;
 
   return ((unsigned long long)(p[7]) << 56) +
     ((unsigned long long)(p[6]) << 48) +
@@ -565,7 +579,7 @@ unsigned long long le_longlong(const void * from)
 }
 
 
-int open_dev(dev_t dev, const string & name)
+int open_dev(dev_t dev, int dev_type, const string & name)
 {
   static const char *paths[] =
   {
@@ -581,7 +595,7 @@ int open_dev(dev_t dev, const string & name)
       snprintf(fn, sizeof(fn), "%s/lshw-%d", *p, getpid());
     else
       snprintf(fn, sizeof(fn), "%s", name.c_str());
-    if ((mknod(fn, (S_IFCHR | S_IREAD), dev) == 0) || (errno == EEXIST))
+    if ((mknod(fn, (dev_type | S_IREAD), dev) == 0) || (errno == EEXIST))
     {
       fd = open(fn, O_RDONLY);
       if(name=="") unlink(fn);
@@ -641,7 +655,7 @@ string utf8(uint16_t * s, ssize_t length, bool forcelittleendian)
 // U+FFFD replacement character
 #define REPLACEMENT  "\357\277\275"
 
-string utf8_sanitize(const string & s)
+string utf8_sanitize(const string & s, bool autotruncate)
 {
   unsigned int i = 0;
   unsigned int remaining = 0;
@@ -664,6 +678,7 @@ string utf8_sanitize(const string & s)
         }
         else		// invalid sequence (truncated)
         {
+          if(autotruncate) return result;
           emit = REPLACEMENT;
           emit += s[i];
           remaining = 0;
@@ -695,7 +710,10 @@ string utf8_sanitize(const string & s)
           emit = s[i];
         }
         else
+        {
+          if(autotruncate) return result;
           emit = REPLACEMENT;	// invalid character
+        }
 
         break;
     }

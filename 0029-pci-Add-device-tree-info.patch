@@ -1,0 +1,34 @@
+From e05126bfbf112fc73c98decaf9d27c5e5e38c3c4 Mon Sep 17 00:00:00 2001
+From: Jeremy Kerr <jk@ozlabs.org>
+Date: Wed, 24 Aug 2016 17:39:44 +0800
+Subject: [PATCH 29/43] pci: Add device tree info
+
+Signed-off-by: Jeremy Kerr <jk@ozlabs.org>
+Signed-off-by: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
+---
+ src/core/pci.cc | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/core/pci.cc b/src/core/pci.cc
+index 8871bbf..1d2b4ee 100644
+--- a/src/core/pci.cc
++++ b/src/core/pci.cc
+@@ -1,6 +1,7 @@
+ #include "version.h"
+ #include "config.h"
+ #include "pci.h"
++#include "device-tree.h"
+ #include "osutils.h"
+ #include "options.h"
+ #include "sysfs.h"
+@@ -1177,6 +1178,7 @@ bool scan_pci(hwNode & n)
+               fclose(resource);
+             }
+         }
++	add_device_tree_info(*device, devices[i]->d_name);
+ 
+         result = true;
+       }
+-- 
+2.10.2
+

@@ -13,7 +13,7 @@
 extern GtkWidget *about;
 extern GtkWidget *mainwindow;
 
-static char *id = "@(#) $Id: callbacks.c 2408 2011-08-24 12:24:45Z lyonel $";
+static char *id = "@(#) $Id$";
 
 G_MODULE_EXPORT
 void

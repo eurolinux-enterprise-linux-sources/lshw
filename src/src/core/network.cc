@@ -31,12 +31,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <string>
 #include <sys/types.h>
 using namespace std;
 
-__ID("@(#) $Id: network.cc 2516 2013-02-03 16:43:25Z lyonel $");
+__ID("@(#) $Id$");
 
 #ifndef ARPHRD_IEEE1394
 #define ARPHRD_IEEE1394 24
@@ -49,9 +50,9 @@ __ID("@(#) $Id: network.cc 2516 2013-02-03 16:43:25Z lyonel $");
 #define SIOCETHTOOL     0x8946
 #endif
 typedef unsigned long long u64;
-typedef __uint32_t u32;
-typedef __uint16_t u16;
-typedef __uint8_t u8;
+typedef uint32_t u32;
+typedef uint16_t u16;
+typedef uint8_t u8;
 
 struct ethtool_cmd
 {
@@ -177,14 +178,26 @@ bool load_interfaces(vector < string > &interfaces)
   return true;
 }
 
+static int maclen(unsigned family = ARPHRD_ETHER)
+{
+  switch(family)
+  {
+    case ARPHRD_INFINIBAND:
+      return 20;
+    case ARPHRD_ETHER:
+      return 6;
+    default:
+      return 14;
+  }
+}
 
-static string getmac(const unsigned char *mac)
+static string getmac(const unsigned char *mac, unsigned family = ARPHRD_ETHER)
 {
   char buff[5];
   string result = "";
   bool valid = false;
 
-  for (int i = 0; i < 6; i++)
+  for (int i = 0; i < maclen(family); i++)
   {
     snprintf(buff, sizeof(buff), "%02x", mac[i]);
 
@@ -314,6 +327,7 @@ bool scan_network(hwNode & n)
 
     for (unsigned int i = 0; i < interfaces.size(); i++)
     {
+      hwNode *existing;
       hwNode interface("network",
         hw::network);
 
@@ -321,7 +335,7 @@ bool scan_network(hwNode & n)
       interface.claim();
       interface.addHint("icon", string("network"));
 
-      string businfo = sysfs_getbusinfo(sysfs::entry::byClass("net", interface.getLogicalName()));
+      string businfo = sysfs::entry::byClass("net", interface.getLogicalName()).businfo();
       interface.setBusInfo(businfo);
 
 //scan_mii(fd, interface);
@@ -366,7 +380,7 @@ bool scan_network(hwNode & n)
 // get MAC address
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) == 0)
       {
-        string hwaddr = getmac((unsigned char *) ifr.ifr_hwaddr.sa_data);
+        string hwaddr = getmac((unsigned char *) ifr.ifr_hwaddr.sa_data, ifr.ifr_hwaddr.sa_family);
         interface.addCapability(hwname(ifr.ifr_hwaddr.sa_family));
         if (ifr.ifr_hwaddr.sa_family >= 256)
           interface.addCapability("logical", _("Logical interface"));
@@ -420,32 +434,37 @@ bool scan_network(hwNode & n)
         if(ecmd.supported & SUPPORTED_10baseT_Half)
         {
           interface.addCapability("10bt", _("10Mbit/s"));
-          interface.setCapacity(10000000L);
+          interface.setCapacity(10000000ULL);
         }
         if(ecmd.supported & SUPPORTED_10baseT_Full)
         {
           interface.addCapability("10bt-fd", _("10Mbit/s (full duplex)"));
-          interface.setCapacity(10000000L);
+          interface.setCapacity(10000000ULL);
         }
         if(ecmd.supported & SUPPORTED_100baseT_Half)
         {
           interface.addCapability("100bt", _("100Mbit/s"));
-          interface.setCapacity(100000000L);
+          interface.setCapacity(100000000ULL);
         }
         if(ecmd.supported & SUPPORTED_100baseT_Full)
         {
           interface.addCapability("100bt-fd", _("100Mbit/s (full duplex)"));
-          interface.setCapacity(100000000L);
+          interface.setCapacity(100000000ULL);
         }
         if(ecmd.supported & SUPPORTED_1000baseT_Half)
         {
           interface.addCapability("1000bt", "1Gbit/s");
-          interface.setCapacity(1000000000L);
+          interface.setCapacity(1000000000ULL);
         }
         if(ecmd.supported & SUPPORTED_1000baseT_Full)
         {
           interface.addCapability("1000bt-fd", _("1Gbit/s (full duplex)"));
-          interface.setCapacity(1000000000L);
+          interface.setCapacity(1000000000ULL);
+        }
+        if(ecmd.supported & SUPPORTED_10000baseT_Full)
+        {
+          interface.addCapability("10000bt-fd", _("10Gbit/s (full duplex)"));
+          interface.setCapacity(10000000000ULL);
         }
         if(ecmd.supported & SUPPORTED_Autoneg)
           interface.addCapability("autonegotiation", _("Auto-negotiation"));
@@ -454,19 +473,19 @@ bool scan_network(hwNode & n)
         {
           case SPEED_10:
             interface.setConfig("speed", "10Mbit/s");
-            interface.setSize(10000000L);
+            interface.setSize(10000000ULL);
             break;
           case SPEED_100:
             interface.setConfig("speed", "100Mbit/s");
-            interface.setSize(100000000L);
+            interface.setSize(100000000ULL);
             break;
           case SPEED_1000:
             interface.setConfig("speed", "1Gbit/s");
-            interface.setSize(1000000000L);
+            interface.setSize(1000000000ULL);
             break;
           case SPEED_10000:
             interface.setConfig("speed", "10Gbit/s");
-            interface.setSize(10000000000L);
+            interface.setSize(10000000000ULL);
             break;
         }
         switch(ecmd.duplex)
@@ -515,7 +534,10 @@ bool scan_network(hwNode & n)
       if(sysfs::entry::byClass("net", interface.getLogicalName()).hassubdir("bridge"))
         interface.addCapability("logical", _("Logical interface"));
 
-      if (hwNode * existing = n.findChildByBusInfo(interface.getBusInfo()))
+      existing = n.findChildByBusInfo(interface.getBusInfo());
+      // Multiple NICs can exist on one PCI function.
+      // Only merge if MACs also match.
+      if (existing && (existing->getSerial() == "" || interface.getSerial() == existing->getSerial()))
       {
         existing->merge(interface);
         if(interface.getDescription()!="")
