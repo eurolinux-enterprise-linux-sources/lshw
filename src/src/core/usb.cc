@@ -69,7 +69,7 @@ static map<u_int32_t,string> usbproducts;
 
 #define PRODID(x, y) ((x << 16) + y)
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: usb.cc 2509 2012-10-24 16:49:18Z lyonel $");
 
 static string usbhost(unsigned bus)
 {

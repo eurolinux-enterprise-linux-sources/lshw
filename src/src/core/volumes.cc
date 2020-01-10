@@ -8,7 +8,6 @@
 
 #include "version.h"
 #include "config.h"
-#include "options.h"
 #include "volumes.h"
 #include "blockio.h"
 #include "lvm.h"
@@ -23,7 +22,7 @@
 #include <stdint.h>
 #include <time.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: volumes.cc 2488 2012-02-22 00:23:47Z lyonel $");
 
 struct fstypes
 {
@@ -277,13 +276,10 @@ static bool detect_ext2(hwNode & n, source & s)
   ext2_version = le_short(&sb->s_rev_level);
   n.setVersion(tostring(ext2_version)+"."+tostring(le_short(&sb->s_minor_rev_level)));
 
-  if (enabled("output:time"))
-  {
-    mtime = (time_t)le_long(&sb->s_mtime);
-    n.setConfig("mounted", datetime(mtime));
-    wtime = (time_t)le_long(&sb->s_wtime);
-    n.setConfig("modified", datetime(wtime));
-  }
+  mtime = (time_t)le_long(&sb->s_mtime);
+  n.setConfig("mounted", datetime(mtime));
+  wtime = (time_t)le_long(&sb->s_wtime);
+  n.setConfig("modified", datetime(wtime));
 
   if(ext2_version >= 1)
   {
@@ -650,8 +646,7 @@ static bool detect_hfsx(hwNode & n, source & s)
   fscktime = (time_t)(be_long(&vol->checkedDate) - HFSTIMEOFFSET);
   wtime = (time_t)(be_long(&vol->modifyDate) - HFSTIMEOFFSET);
   n.setConfig("created", datetime(mkfstime, false));	// creation time uses local time
-  if (enabled("output:time"))
-    n.setConfig("checked", datetime(fscktime));
+  n.setConfig("checked", datetime(fscktime));
   n.setConfig("modified", datetime(wtime));
 
   return true;
@@ -882,6 +877,7 @@ static bool detect_ntfs(hwNode & n, source & s)
   unsigned long long bytes_per_sector = 512;
   unsigned long long sectors_per_cluster = 8;
   signed char clusters_per_mft_record = 1;
+  signed char clusters_per_index_record = 1;
   unsigned long long reserved_sectors = 0;
   unsigned long long hidden_sectors = 0;
   unsigned long long size = 0;
@@ -926,6 +922,7 @@ static bool detect_ntfs(hwNode & n, source & s)
     mft_record_size = clusters_per_mft_record;
     mft_record_size *= bytes_per_sector * sectors_per_cluster;
   }
+  clusters_per_index_record = (char)buffer[0x44];
 
   ntfsvolume = s;
   ntfsvolume.offset += mft * bytes_per_sector * sectors_per_cluster; // point to $MFT

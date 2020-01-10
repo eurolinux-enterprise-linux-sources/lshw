@@ -22,7 +22,7 @@
 #include <unistd.h>
 #include <dirent.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: parisc.cc 2037 2008-09-05 19:47:37Z lyonel $");
 
 #define DEVICESPARISC "/sys/devices/parisc"
 

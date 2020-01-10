@@ -398,9 +398,7 @@ bool issmp(hwNode & n)
 
 bool issmp(hwNode & n)
 {
-  string onlinecpus = get_string("/sys/devices/system/cpu/online", "0");
-
-  return matches(onlinecpus, "^[0-9]+-[0-9]+") || matches(onlinecpus, "^[0-9]+,[0-9]+");
+  return false;
 }
 
 #endif

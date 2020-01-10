@@ -1,0 +1,61 @@
+From bab358bdb88247e033f21b0155df3006535a18d6 Mon Sep 17 00:00:00 2001
+From: Lyonel Vincent <lyonel@ezix.org>
+Date: Thu, 7 Aug 2014 22:01:02 +0000
+Subject: [PATCH 1/1] apply patch 2 of ticket #655: report IBM PowerNV hardware
+ model
+
+From: Dipankar Sarma <dipankar@in.ibm.com>
+
+Like x86, now IBM Power system allows the user to run Linux
+on host (PowerNV - Power Non Virtualized) as well as guest
+(PowerKVM guest, PowerVM LPAR).
+
+The IBM Power systems use OPAL firmware (https://github.com/open-power/skiboot)
+on PowerNV mode which exposes system information to Linux
+via device tree (/proc/device-tree).
+
+Device tree provided by OPAL is slightly different than Open
+Firmware specification.
+
+lshw presently fetches device tree information according to the
+Apple Open firmware format.
+
+Hence we need to detect if the platform is IBM Powernv, if true process
+the information appropriately.
+
+Signed-off-by: Dipankar Sarma <dipankar@in.ibm.com>
+Signed-off-by: Janani Venkataraman <jananive@linux.vnet.ibm.com>
+
+
+git-svn-id: http://ezix.org/source/packages/lshw/development@2539 811e2811-9fd9-0310-a116-b6e8ac943c8b
+---
+ src/core/device-tree.cc | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index 809de7c..2938e1e 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -529,9 +529,16 @@ bool scan_device_tree(hwNode & n)
+     n.setSerial(get_string(DEVICETREE "/system-id"));
+   fix_serial_number(n);
+ 
+-  n.setVendor(get_string(DEVICETREE "/copyright", n.getVendor()));
+-
+-  get_apple_model(n);
++  if (matches(get_string(DEVICETREE "/compatible"), "^ibm,powernv"))
++  {
++    n.setVendor(get_string(DEVICETREE "/vendor", "IBM"));
++    n.setDescription(get_string(DEVICETREE "/model-name"));
++  }
++  else
++  {
++    n.setVendor(get_string(DEVICETREE "/copyright", n.getVendor()));
++    get_apple_model(n);
++  }
+ 
+   if (core)
+   {
+-- 
+2.4.3
+

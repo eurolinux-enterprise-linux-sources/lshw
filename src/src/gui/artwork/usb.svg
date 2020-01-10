@@ -81,7 +81,7 @@
           </cc:Agent>
         </dc:publisher>
         <dc:source
-           id="source1757">$Id$</dc:source>
+           id="source1757">$Id: usb.svg 1822 2007-08-07 19:51:34Z lyonel $</dc:source>
       </cc:Work>
       <cc:License
          rdf:about="http://creativecommons.org/licenses/GPL/2.0/"

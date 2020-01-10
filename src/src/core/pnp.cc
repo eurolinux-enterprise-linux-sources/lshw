@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: pnp.cc 1923 2008-02-10 23:04:53Z lyonel $");
 
 static const char *pnp_vendors[] =
 {

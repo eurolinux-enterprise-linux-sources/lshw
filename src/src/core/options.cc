@@ -18,7 +18,7 @@
 
 using namespace std;
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: options.cc 2327 2010-10-04 22:13:22Z lyonel $");
 
 static set < string > disabled_tests;
 static set < string > visible_classes;

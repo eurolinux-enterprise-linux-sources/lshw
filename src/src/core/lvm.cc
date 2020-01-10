@@ -15,7 +15,7 @@
 #include "osutils.h"
 #include <string.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: lvm.cc 2151 2010-03-15 20:26:20Z lyonel $");
 
 #define LABEL_ID "LABELONE"
 #define LABEL_SIZE BLOCKSIZE                      /* Think very carefully before changing this */
@@ -87,7 +87,7 @@ uint32_t calc_crc(uint32_t initial, void *buf, uint32_t size)
 }
 
 
-static const char *id = "@(#) $Id$";
+static const char *id = "@(#) $Id: lvm.cc 2151 2010-03-15 20:26:20Z lyonel $";
 
 static string uuid(void * s)
 {

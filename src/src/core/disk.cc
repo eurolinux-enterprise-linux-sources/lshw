@@ -11,7 +11,7 @@
 
 //#include <linux/fs.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: disk.cc 2517 2013-02-04 12:56:53Z lyonel $");
 
 #ifndef BLKROGET
 #define BLKROGET   _IO(0x12,94)                   /* get read-only status (0 = read_write) */

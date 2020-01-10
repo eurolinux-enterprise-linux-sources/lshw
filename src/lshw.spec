@@ -3,10 +3,10 @@
 
 Summary: HardWare LiSter
 Name: lshw
-Version: @VERSION@
+Version: B.02.17
 Release: 2
 Source: http://www.ezix.org/software/files/%{name}-%{version}.tar.gz
-URL: http://lshw.ezix.org/
+URL: http://lshw.org/
 License: GPL
 Group: Applications/System
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -22,7 +22,7 @@ Information can be output in plain text, XML or HTML.
 
 For detailed information on lshw features and usage, please see the
 included documentation or go to the lshw Web page,
-http://lshw.ezix.org/
+http://lshw.org/
 
 %if %{!?_without_gui:1}0
 %package gui
@@ -44,7 +44,7 @@ information.
 
 For detailed information on lshw features and usage, please see the
 included documentation or go to the lshw Web page,
-http://lshw.ezix.org/
+http://gui.lshw.org/
 
 %endif
 
@@ -94,7 +94,7 @@ http://lshw.ezix.org/
 
 %files
 %defattr(-,root,root, 0555)
-%doc README.md COPYING docs/TODO docs/Changelog docs/lshw.xsd
+%doc README COPYING docs/TODO docs/Changelog docs/lshw.xsd
 %{_sbindir}/lshw
 %doc %{_mandir}/man?/*
 %{_datadir}/lshw/

@@ -1,0 +1,133 @@
+From 368e26e023e2d19ffd1d973446f36130cf1ba0a1 Mon Sep 17 00:00:00 2001
+From: Lyonel Vincent <lyonel@ezix.org>
+Date: Thu, 7 Aug 2014 22:15:58 +0000
+Subject: [PATCH 1/1] apply patch 5 of ticket #655: report IBM PowerNV memory
+ info
+
+From: Dipankar Sarma <dipankar@in.ibm.com>
+
+This patch adds support for listing memory hardware based on the
+device tree exposed by OPAL firmware on IBM PowerNV platforms.
+
+We use this information available in device tree and make lshw list
+the memory banks.
+
+We also add the location-code and part-number for the memory banks
+listed.
+
+Signed-off-by: Dipankar Sarma <dipankar@in.ibm.com>
+Signed-off-by: Janani Venkataraman <jananive@linux.vnet.ibm.com>
+
+
+
+git-svn-id: http://ezix.org/source/packages/lshw/development@2540 811e2811-9fd9-0310-a116-b6e8ac943c8b
+---
+ src/core/device-tree.cc | 73 +++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 62 insertions(+), 11 deletions(-)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index 2938e1e..ca251bb 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -9,6 +9,7 @@
+  *
+  */
+ 
++#include <errno.h>
+ #include "version.h"
+ #include "device-tree.h"
+ #include "osutils.h"
+@@ -283,6 +284,49 @@ static void scan_devtree_cpu(hwNode & core)
+   }
+ }
+ 
++static void scan_devtree_memory_powernv(hwNode & core)
++{
++  struct dirent **namelist;
++  hwNode *memory = core.getChild("memory");
++  int n;
++
++  pushd(DEVICETREE "/vpd");
++  n = scandir(".", &namelist, selectdir, alphasort);
++  popd();
++  if (n < 0)
++    return;
++  for (int i = 0; i < n; i++)
++  {
++    string basepath;
++    unsigned long size = 0;
++    string sizestr;
++
++    if (strncmp(namelist[i]->d_name, "ms-dimm@", 8) == 0)
++    {
++      hwNode bank("bank", hw::memory);
++
++      if (!memory)
++        memory = core.addChild(hwNode("memory", hw::memory));
++
++      basepath = string(DEVICETREE "/vpd/") + string(namelist[i]->d_name);
++      bank.setSerial(get_string(basepath + string("/serial-number")));
++      bank.setProduct(get_string(basepath + string("/part-number")) + " FRU#" + get_string(basepath + string("/fru-number")));
++      bank.setDescription(get_string(basepath + string("/description")));
++      bank.setSlot(get_string(basepath + string("/ibm,loc-code")));
++      sizestr = get_string(basepath + string("/size"));
++      errno = 0;
++      size = strtoul(sizestr.c_str(), NULL, 10);
++      if (!errno)
++        bank.setSize(size*1024*1024);
++      bank.addHint("icon", string("memory"));
++
++      memory->addChild(bank);
++    }
++    free(namelist[i]);
++  }
++  free(namelist);
++}
++
+ 
+ static void scan_devtree_memory(hwNode & core)
+ {
+@@ -532,22 +576,29 @@ bool scan_device_tree(hwNode & n)
+   if (matches(get_string(DEVICETREE "/compatible"), "^ibm,powernv"))
+   {
+     n.setVendor(get_string(DEVICETREE "/vendor", "IBM"));
+-    n.setDescription(get_string(DEVICETREE "/model-name"));
++    n.setProduct(get_string(DEVICETREE "/model-name"));
++    if (core)
++    {
++      core->addHint("icon", string("board"));
++      scan_devtree_root(*core);
++      scan_devtree_memory_powernv(*core);
++      scan_devtree_cpu(*core);
++      n.addCapability("powernv", "Non-virtualized");
++      n.addCapability("opal", "OPAL firmware");
++    }
+   }
+   else
+   {
+     n.setVendor(get_string(DEVICETREE "/copyright", n.getVendor()));
+     get_apple_model(n);
+-  }
+-
+-  if (core)
+-  {
+-    core->addHint("icon", string("board"));
+-    scan_devtree_root(*core);
+-    scan_devtree_bootrom(*core);
+-    scan_devtree_memory(*core);
+-    scan_devtree_cpu(*core);
+-    core->addCapability(get_string(DEVICETREE "/compatible"));
++    if (core)
++    {
++      core->addHint("icon", string("board"));
++      scan_devtree_root(*core);
++      scan_devtree_bootrom(*core);
++      scan_devtree_memory(*core);
++      scan_devtree_cpu(*core);
++    }
+   }
+ 
+   return true;
+-- 
+2.4.3
+

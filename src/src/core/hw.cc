@@ -22,7 +22,7 @@
 
 using namespace hw;
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: hw.cc 2409 2011-08-24 16:17:26Z lyonel $");
 
 struct hwNode_i
 {
@@ -622,7 +622,7 @@ hwNode *hwNode::getChild(const string & id)
   }
 
   for (unsigned int i = 0; i < This->children.size(); i++)
-    if (This->children[i].getId() == cleanupId(baseid))
+    if (This->children[i].getId() == baseid)
   {
     if (path == "")
       return &(This->children[i]);

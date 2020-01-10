@@ -22,7 +22,7 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: print.cc 2145 2010-03-08 21:55:22Z lyonel $");
 
 static unsigned int columns = 0, rows = 0;
 
