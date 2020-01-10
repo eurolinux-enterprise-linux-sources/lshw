@@ -1,0 +1,35 @@
+From 58b09584280dfd1a7a6bb86b3c20590e3048571d Mon Sep 17 00:00:00 2001
+From: Dan Callaghan <dcallagh@redhat.com>
+Date: Wed, 29 Jul 2015 18:09:06 +1000
+Subject: [PATCH 25/26] scsi: initialize parent inside the loop (#692)
+
+This avoids accidentally parenting a SCSI device onto the wrong host
+from the previous iteration of the loop, if no parent device was found
+in the current iteration.
+---
+ src/core/scsi.cc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/core/scsi.cc b/src/core/scsi.cc
+index 6cebbf5..d074033 100644
+--- a/src/core/scsi.cc
++++ b/src/core/scsi.cc
+@@ -662,7 +662,6 @@ static void scan_sg(hwNode & n)
+   string host = "";
+   string businfo = "";
+   string adapter_businfo = "";
+-  hwNode *parent = NULL;
+   int emulated = 0;
+   bool ghostdeventry = false;
+   size_t j;
+@@ -701,6 +700,7 @@ static void scan_sg(hwNode & n)
+       .parent().businfo();
+ 
+   hwNode device = hwNode("generic");
++  hwNode *parent = NULL;
+ 
+   switch (m_id.scsi_type)
+   {
+-- 
+2.10.2
+

@@ -1,0 +1,234 @@
+From 9da4adf7cdc7c7406bff6e0f916027dcc1d5eb0d Mon Sep 17 00:00:00 2001
+From: Carlos Santos <casantos@datacom.ind.br>
+Date: Sun, 28 Jan 2018 18:45:24 -0200
+Subject: [PATCH 01/10] Add support for gzip-compressed data files
+
+The data files currently ocuppy 6.7MB. Compressing them with gzip reduce
+that space to 1.9MB, which is useful for space-constrained environments,
+like embedded systems. This is achieved by the following changes:
+
+- Add the ZLIB make variable to enable compilation with zlib support.
+- Modify the loadfile function (in src/core/osutils.cc) to use gzopen,
+  gzread, etc. to read data files.
+- Try to open 'file.foo.gz' first, then 'file.foo'. This works because
+  gzopen(3) and gzread(3) treat files not in the gzip format as ordinary
+  ones and open/read them as ordinary open(2) and read(2) would do.
+
+Signed-off-by: Carlos Santos <casantos@datacom.ind.br>
+---
+ README.md           | 10 ++++++++--
+ src/Makefile        | 16 ++++++++++++++++
+ src/core/osutils.cc | 37 +++++++++++++++++++++++++++++++++----
+ src/lshw.1          |  7 ++++---
+ src/lshw.sgml       |  1 +
+ 5 files changed, 62 insertions(+), 9 deletions(-)
+
+diff --git a/README.md b/README.md
+index 8b6dfbf..b3cddc6 100644
+--- a/README.md
++++ b/README.md
+@@ -23,6 +23,10 @@ Installation
+ 
+     	$ make
+ 
++    To complile with zlib support (see below), use:
++
++    	$ make ZLIB=1
++
+  3. If you want to build the optional GUI, do:
+ 
+     	$ make
+@@ -46,13 +50,15 @@ NOTE TO DISTRIBUTIONS
+ 
+ By default, lshw includes its own lists of PCI IDs, USB IDs, etc. but will also look for this information in
+ 
+-    /usr/share/lshw/,
+-    /usr/local/share/,
++	/usr/share/lshw/,
++	/usr/local/share/,
+ 	/usr/share/,
+ 	/etc/,
+ 	/usr/share/hwdata/,
+ 	/usr/share/misc/
+ 
++If compiled with zlib support, lshw will look for `file`.gz first, then for `file`.
++
+ Statically-linked and/or compressed binaries can be built by using
+ 
+     $ make static
+diff --git a/src/Makefile b/src/Makefile
+index ab179be..a627466 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -3,6 +3,7 @@ export PACKAGENAME
+ VERSION?= $(shell git describe --tags --long | cut -d - -f 1,2 | tr - .)
+ 
+ SQLITE?=0
++ZLIB?=0
+ 
+ DESTDIR?=/
+ PREFIX?=/usr
+@@ -17,6 +18,7 @@ export SBINDIR
+ export MANDIR
+ export DATADIR
+ export SQLITE
++export ZLIB
+ 
+ CXX?=c++
+ INCLUDES=-I./core/
+@@ -25,6 +27,9 @@ CXXFLAGS=-g -Wall -g $(INCLUDES) $(DEFINES) $(RPM_OPT_FLAGS)
+ ifeq ($(SQLITE), 1)
+ 	CXXFLAGS+= -DSQLITE $(shell pkg-config --cflags sqlite3)
+ endif
++ifeq ($(ZLIB), 1)
++	CXXFLAGS+= -DZLIB $(shell pkg-config --cflags zlib)
++endif
+ LDFLAGS=-L./core/ -g
+ ifneq ($(shell $(LD) --help 2| grep -- --as-needed), )
+ 	LDFLAGS+= -Wl,--as-needed
+@@ -34,18 +39,28 @@ LIBS+=-llshw -lresolv
+ ifeq ($(SQLITE), 1)
+ 	LIBS+= $(shell pkg-config --libs sqlite3)
+ endif
++ifeq ($(ZLIB), 1)
++	LIBS+= $(shell pkg-config --libs zlib)
++endif
+ 
+ export CXXFLAGS
+ export LIBS
+ export LDFLAGS
+ 
++ifeq ($(ZLIB), 1)
++DATAFILES = pci.ids.gz usb.ids.gz oui.txt.gz manuf.txt.gz pnp.ids.gz pnpid.txt.gz
++else
+ DATAFILES = pci.ids usb.ids oui.txt manuf.txt pnp.ids pnpid.txt
++endif
+ 
+ all: $(PACKAGENAME) $(PACKAGENAME).1 $(DATAFILES)
+ 
+ .cc.o:
+ 	$(CXX) $(CXXFLAGS) -c $< -o $@
+ 
++%.gz: %
++	gzip -c $< > $@
++
+ .PHONY: core
+ core:
+ 	+make -C core all
+@@ -118,6 +133,7 @@ install-gui: gui
+ 	
+ clean:
+ 	rm -f $(PACKAGENAME).o $(PACKAGENAME) $(PACKAGENAME)-static $(PACKAGENAME)-compressed
++	rm -f $(addsuffix .gz,$(DATAFILES))
+ 	make -C core clean
+ 	make -C gui clean
+ 
+diff --git a/src/core/osutils.cc b/src/core/osutils.cc
+index ff41e18..f023a46 100644
+--- a/src/core/osutils.cc
++++ b/src/core/osutils.cc
+@@ -21,6 +21,9 @@
+ #ifndef MINOR
+ #include <linux/kdev_t.h>
+ #endif
++#ifdef ZLIB
++#include <zlib.h>
++#endif
+ 
+ __ID("@(#) $Id$");
+ 
+@@ -114,23 +117,49 @@ bool exists(const string & path)
+ }
+ 
+ 
++#ifdef ZLIB
++
++typedef gzFile data_file;
++static data_file file_open(const string & file)
++{
++  data_file result = gzopen((file + ".gz").c_str(), "rb");
++  if (!result)
++  {
++    result = gzopen(file.c_str(), "rb");
++  }
++  return result;
++}
++#define file_open_error(f) ((f) == NULL)
++#define file_read(f, b, l) gzread((f), (b), (l))
++#define file_close(f) gzclose(f)
++
++#else
++
++typedef int data_file;
++#define file_open(f) open((f).c_str(), O_RDONLY);
++#define file_open_error(f) ((f) < 0)
++#define file_read(f, b, l) read((f), (b), (l))
++#define file_close(f) close(f)
++
++#endif
++
+ bool loadfile(const string & file,
+ vector < string > &list)
+ {
+   char buffer[1024];
+   string buffer_str = "";
+   size_t count = 0;
+-  int fd = open(file.c_str(), O_RDONLY);
++  data_file fd = file_open(file);
+ 
+-  if (fd < 0)
++  if (file_open_error(fd))
+     return false;
+ 
+-  while ((count = read(fd, buffer, sizeof(buffer))) > 0)
++  while ((count = file_read(fd, buffer, sizeof(buffer))) > 0)
+     buffer_str += string(buffer, count);
+ 
+   splitlines(buffer_str, list);
+ 
+-  close(fd);
++  file_close(fd);
+ 
+   return true;
+ }
+diff --git a/src/lshw.1 b/src/lshw.1
+index 551fece..43e4eac 100644
+--- a/src/lshw.1
++++ b/src/lshw.1
+@@ -1,5 +1,5 @@
+-.\\" auto-generated by docbook2man-spec $Revision: 1.2 $
+-.TH "LSHW" "1" "30 May 2010" "$Rev: 2179 $" ""
++.\" auto-generated by docbook2man-spec from docbook-utils package
++.TH "LSHW" "1" "28 January 2018" "$Rev$" ""
+ .SH NAME
+ lshw \- list hardware
+ .SH SYNOPSIS
+@@ -98,6 +98,7 @@ partial information.
+ .TP
+ \fB/usr/share/hwdata/pci.ids\fR
+ A list of all known PCI ID's (vendors, devices, classes and subclasses).
++If compiled with zlib support, lshw will look for \fIpci.ids.gz\fR first, then for \fIpci.ids\fR\&.
+ .TP
+ \fB/proc/bus/pci/*\fR
+ Used to access the configuration of installed PCI busses and devices.
+@@ -146,4 +147,4 @@ Don't use DMI to detect hardware.
+ .SH "OTHER INFO"
+ .PP
+ The webpage for \fBlshw\fR is at 
+- <URL:http://lshw.org/>
++ <URL:http://lshw.ezix.org/>
+diff --git a/src/lshw.sgml b/src/lshw.sgml
+index e8b0168..2f3a3ac 100644
+--- a/src/lshw.sgml
++++ b/src/lshw.sgml
+@@ -166,6 +166,7 @@ partial information.
+ <term>/usr/share/hwdata/pci.ids</term>
+ <listitem><para>
+ A list of all known PCI ID's (vendors,  devices, classes and subclasses).
++If compiled with zlib support, lshw will look for <filename>pci.ids.gz</filename> first, then for <filename>pci.ids</filename>.
+ </para></listitem></varlistentry>
+ 
+ <varlistentry><term>/proc/bus/pci/*</term>
+-- 
+2.17.1
+

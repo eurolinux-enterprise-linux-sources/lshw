@@ -1,0 +1,152 @@
+From d0791b8831e2eee3e6942dbcbe716021576a72bd Mon Sep 17 00:00:00 2001
+From: Jack Miller <jack@codezen.org>
+Date: Thu, 20 Oct 2016 16:43:22 +0530
+Subject: [PATCH 25/43] devtree: Add VPD info for BMC based IBM Power System
+
+Power Systems supports various environment and various service
+processor types (like IBM FSP, industry standard BMC, etc).
+
+We have processor chip level VPD (part number, serial number etc)
+and all cores under chip shares this information.
+
+BMC based Power Systems provides chip VPD information under xscom
+node. This patch adds support for adding VPD information for CPU
+nodes on BMC based system.
+
+Sample output:
+     *-cpu:0
+         description: POWER8 (raw), altivec supported
+         product: 00UM003
+         vendor: PROCESSOR
+         physical id: 16
+         bus info: cpu@0
+         version: 2.0 (pvr 004d 0200)
+         serial: YA1932579651
+         size: 2061MHz
+         capacity: 3491MHz
+         capabilities: performance-monitor cpufreq
+         configuration: threads=8
+
+Signed-off-by: Jack Miller <jack@codezen.org>
+[Reorganized code, updated description - Vasant]
+Signed-off-by: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
+---
+ src/core/device-tree.cc | 58 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 56 insertions(+), 2 deletions(-)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index 16406fd..d61347b 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -443,16 +443,19 @@ static void scan_chip_vpd(map <uint32_t, chip_vpd_data *> & vpd)
+ 
+ 
+ static void fill_core_vpd(hwNode & cpu, string & basepath,
+-			  map <uint32_t, chip_vpd_data *> & chip_vpd)
++			  map <uint32_t, chip_vpd_data *> & chip_vpd,
++			  map <uint32_t, string> & xscoms)
+ {
+   uint32_t chip_id;
+   chip_vpd_data *data;
++  string xscom_path;
+ 
+   if (!exists(basepath + "/ibm,chip-id"))
+     return;
+ 
+   chip_id = get_u32(basepath + "/ibm,chip-id");
+   data = chip_vpd[chip_id];
++  xscom_path = xscoms[chip_id];
+ 
+   if (data)
+   {
+@@ -460,6 +463,25 @@ static void fill_core_vpd(hwNode & cpu, string & basepath,
+     cpu.setSerial(data->serial);
+     cpu.setSlot(data->slot);
+   }
++
++  if (xscom_path != "")
++  {
++    vector <string> board_pieces;
++
++    splitlines(hw::strip(get_string(xscom_path + "/board-info")),
++	       board_pieces, ' ');
++    if (board_pieces.size() > 0)
++      cpu.setVendor(board_pieces[0]);
++
++    if (exists(xscom_path + "/serial-number"))
++      cpu.setSerial(hw::strip(get_string(xscom_path + "/serial-number")));
++
++    if (exists(xscom_path + "/ibm,slot-location-code"))
++      cpu.setSlot(hw::strip(get_string(xscom_path + "/ibm,slot-location-code")));
++
++    if (exists(xscom_path + "/part-number"))
++      cpu.setProduct(hw::strip(get_string(xscom_path + "/part-number")));
++  }
+ }
+ 
+ static void set_cpu_config_threads(hwNode & cpu, const string & basepath)
+@@ -488,6 +510,34 @@ static void set_cpu_config_threads(hwNode & cpu, const string & basepath)
+ }
+ 
+ 
++static void scan_xscom_node(map <uint32_t, string> & xscoms)
++{
++  int n;
++  struct dirent **namelist;
++
++  pushd(DEVICETREE);
++  n = scandir(".", &namelist, selectdir, alphasort);
++  popd();
++
++  if (n <= 0)
++    return;
++
++  for (int i = 0; i < n; i++) {
++    string sname = string(namelist[i]->d_name);
++    string fullpath = "";
++    int chip_id = 0;
++
++    if (sname.substr(0,5) == "xscom") {
++      fullpath = string(DEVICETREE) + "/" + sname;
++      chip_id = get_u32(fullpath + "/ibm,chip-id");
++      xscoms.insert(std::pair<uint32_t, string>(chip_id, fullpath));
++    }
++
++    free(namelist[i]);
++  }
++  free(namelist);
++}
++
+ static void scan_devtree_cpu_power(hwNode & core)
+ {
+   int n;
+@@ -496,6 +546,7 @@ static void scan_devtree_cpu_power(hwNode & core)
+   map <uint32_t, pair<uint32_t, vector <hwNode> > > l2_caches;
+   map <uint32_t, vector <hwNode> > l3_caches;
+   map <uint32_t, chip_vpd_data *> chip_vpd;
++  map <uint32_t, string> xscoms;
+ 
+   pushd(DEVICETREE "/cpus");
+   n = scandir(".", &namelist, selectdir, alphasort);
+@@ -578,6 +629,9 @@ static void scan_devtree_cpu_power(hwNode & core)
+    */
+   scan_chip_vpd(chip_vpd);
+ 
++  // List all xscom nodes under DT
++  scan_xscom_node(xscoms);
++
+   for (int i = 0; i < n; i++) //second and final pass
+   {
+     uint32_t l2_key = 0;
+@@ -608,7 +662,7 @@ static void scan_devtree_cpu_power(hwNode & core)
+     if (version != 0)
+       cpu.setVersion(tostring(version));
+ 
+-    fill_core_vpd(cpu, basepath, chip_vpd);
++    fill_core_vpd(cpu, basepath, chip_vpd, xscoms);
+ 
+     if (hw::strip(get_string(basepath + "/status")) != "okay")
+       cpu.disable();
+-- 
+2.10.2
+

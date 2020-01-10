@@ -1,0 +1,55 @@
+From 6a75f4e52f0a356d54e1cd06f99f91d21bd03663 Mon Sep 17 00:00:00 2001
+From: Chandni Verma <chandni@linux.vnet.ibm.com>
+Date: Thu, 14 Jul 2016 23:46:42 +0530
+Subject: [PATCH 20/43] devtree: Display CPU nodes before memory
+
+Present lshw displays memory node before cpu node for Power System. But
+on x86, it displays cpu before memory. Lets use same output format on
+x86 and Power Systems.
+
+Note that I've made sure it doesn't hurt other platforms (like Apple)
+which has device tree.
+
+Signed-off-by: Chandni Verma <chandni@linux.vnet.ibm.com>
+[Made sure this patch doesn't impact non-IBM Power systems,
+ updated description - Vasant]
+Signed-off-by: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
+---
+ src/core/device-tree.cc | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index 700dff0..b8feb12 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -931,8 +931,8 @@ bool scan_device_tree(hwNode & n)
+     {
+       core->addHint("icon", string("board"));
+       scan_devtree_root(*core);
+-      scan_devtree_memory_powernv(*core);
+       scan_devtree_cpu_power(*core);
++      scan_devtree_memory_powernv(*core);
+       n.addCapability("powernv", "Non-virtualized");
+       n.addCapability("opal", "OPAL firmware");
+     }
+@@ -982,11 +982,14 @@ bool scan_device_tree(hwNode & n)
+       core->addHint("icon", string("board"));
+       scan_devtree_root(*core);
+       scan_devtree_bootrom(*core);
+-      scan_devtree_memory(*core);
+-      if (exists(DEVICETREE "/ibm,lpar-capable"))
++      if (exists(DEVICETREE "/ibm,lpar-capable")) {
+         scan_devtree_cpu_power(*core);
+-      else
++        scan_devtree_memory(*core);
++      }
++      else {
++        scan_devtree_memory(*core);
+         scan_devtree_cpu(*core);
++     }
+     }
+   }
+ 
+-- 
+2.10.2
+

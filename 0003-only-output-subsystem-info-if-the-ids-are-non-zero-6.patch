@@ -1,0 +1,45 @@
+From 41a22200b025cc8693b01cc66ac08eef7a1a0f10 Mon Sep 17 00:00:00 2001
+From: Dan Callaghan <dcallagh@redhat.com>
+Date: Wed, 24 Jun 2015 12:53:22 +1000
+Subject: [PATCH 03/26] only output subsystem info if the ids are non-zero
+ (#611)
+
+---
+ src/core/pci.cc | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/core/pci.cc b/src/core/pci.cc
+index d9a2cd8..7c09eb8 100644
+--- a/src/core/pci.cc
++++ b/src/core/pci.cc
+@@ -808,8 +808,11 @@ static hwNode *scan_pci_dev(struct pci_dev &d, hwNode & n)
+         host.setDescription(get_class_description(dclass, progif));
+         host.setVendor(get_device_description(d.vendor_id)+(enabled("output:numeric")?" ["+tohex(d.vendor_id)+"]":""));
+         host.setProduct(get_device_description(d.vendor_id, d.device_id)+(enabled("output:numeric")?" ["+tohex(d.vendor_id)+":"+tohex(d.device_id)+"]":""));
+-        host.setSubsysVendor(get_device_description(subsys_v)+(enabled("output:numeric")?" ["+tohex(subsys_v)+"]":""));
+-        host.setSubsysProduct(get_device_description(subsys_v, subsys_d)+(enabled("output:numeric")?" ["+tohex(subsys_v)+":"+tohex(subsys_d)+"]":""));
++        if (subsys_v != 0 || subsys_d != 0)
++        {
++          host.setSubsysVendor(get_device_description(subsys_v)+(enabled("output:numeric")?" ["+tohex(subsys_v)+"]":""));
++          host.setSubsysProduct(get_device_description(subsys_v, subsys_d)+(enabled("output:numeric")?" ["+tohex(subsys_v)+":"+tohex(subsys_d)+"]":""));
++        }
+         host.setHandle(pci_bushandle(d.bus, d.domain));
+         host.setVersion(revision);
+         addHints(host, d.vendor_id, d.device_id, subsys_v, subsys_d, dclass);
+@@ -958,8 +961,11 @@ static hwNode *scan_pci_dev(struct pci_dev &d, hwNode & n)
+           device->setVendor(get_device_description(d.vendor_id)+(enabled("output:numeric")?" ["+tohex(d.vendor_id)+"]":""));
+           device->setVersion(revision);
+           device->setProduct(get_device_description(d.vendor_id, d.device_id)+(enabled("output:numeric")?" ["+tohex(d.vendor_id)+":"+tohex(d.device_id)+"]":""));
+-          device->setSubsysVendor(get_device_description(subsys_v)+(enabled("output:numeric")?" ["+tohex(subsys_v)+"]":""));
+-          device->setSubsysProduct(get_device_description(subsys_v, subsys_d)+(enabled("output:numeric")?" ["+tohex(subsys_v)+":"+tohex(subsys_d)+"]":""));
++          if (subsys_v != 0 || subsys_d != 0)
++          {
++            device->setSubsysVendor(get_device_description(subsys_v)+(enabled("output:numeric")?" ["+tohex(subsys_v)+"]":""));
++            device->setSubsysProduct(get_device_description(subsys_v, subsys_d)+(enabled("output:numeric")?" ["+tohex(subsys_v)+":"+tohex(subsys_d)+"]":""));
++          }
+           if (cmd & PCI_COMMAND_MASTER)
+             device->addCapability("bus master", "bus mastering");
+           if (cmd & PCI_COMMAND_VGA_PALETTE)
+-- 
+2.10.2
+

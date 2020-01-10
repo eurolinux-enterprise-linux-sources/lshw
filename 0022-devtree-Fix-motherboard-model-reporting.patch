@@ -1,0 +1,40 @@
+From b409777707752adddbbd9fd33b5388825f8a032e Mon Sep 17 00:00:00 2001
+From: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
+Date: Fri, 21 Oct 2016 11:08:34 +0530
+Subject: [PATCH 22/43] devtree: Fix motherboard model reporting
+
+We have 'model' property on all Power System. Some system has
+'model-name' property which is more descriptive.
+
+Append 'model-name' info to product instead of overwriting it.
+
+Sample output:
+tul176p1
+    description: PowerNV
+    product: 8286-42A (IBM Power System S824)
+
+Signed-off-by: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
+---
+ src/core/device-tree.cc | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index 951535c..c60e49c 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -926,7 +926,11 @@ bool scan_device_tree(hwNode & n)
+   if (matches(get_string(DEVICETREE "/compatible"), "^ibm,powernv"))
+   {
+     n.setVendor(get_string(DEVICETREE "/vendor", "IBM"));
+-    n.setProduct(get_string(DEVICETREE "/model-name"));
++
++    if (exists(DEVICETREE "/model-name"))
++      n.setProduct(n.getProduct() + " (" +
++		   hw::strip(get_string(DEVICETREE "/model-name")) + ")");
++
+     n.setDescription("PowerNV");
+     if (core)
+     {
+-- 
+2.10.2
+

@@ -1,0 +1,49 @@
+From 54a9827172d4fb94447e81f598200c7d5d41db05 Mon Sep 17 00:00:00 2001
+From: Jeremy Kerr <jk@ozlabs.org>
+Date: Tue, 6 Sep 2016 13:32:03 +0800
+Subject: [PATCH 35/43] devtree: Don't overrun dimminfo buffer
+
+The SPD size fields report the total size of the SPD, but we're reading
+into 128-bytes beyond the start of our spd buffer. So, we currently
+overrung our stack-allocated dimminfo buffer.
+
+This change takes account of the data we've already read.
+
+Signed-off-by: Jeremy Kerr <jk@ozlabs.org>
+Signed-off-by: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
+---
+ src/core/device-tree.cc | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index 2d908d2..e286ab4 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -763,6 +763,7 @@ static void add_memory_bank_spd(string path, hwNode & bank)
+   unsigned char partno_offset;
+   unsigned char ver_offset;
+   int fd;
++  size_t len = 0;
+   dimminfo_buf dimminfo;
+ 
+   fd = open(path.c_str(), O_RDONLY);
+@@ -778,11 +779,14 @@ static void add_memory_bank_spd(string path, hwNode & bank)
+   /* Read entire SPD eeprom */
+   if (dimminfo[2] >= 9) /* DDR3 */
+   {
+-    read(fd, &dimminfo[0x80], (64 << ((dimminfo[0] & 0x70) >> 4)));
++    len = 64 << ((dimminfo[0] & 0x70) >> 4);
+   } else if (dimminfo[0] < 15) { /* DDR 2 */
+-    read(fd, &dimminfo[0x80], (1 << (dimminfo[1])));
++    len = 1 << dimminfo[1];
+   }
+ 
++  if (len > 0x80)
++    read(fd, &dimminfo[0x80], len - 0x80);
++
+   close(fd);
+ 
+   if (dimminfo[2] >= 9) {
+-- 
+2.10.2
+

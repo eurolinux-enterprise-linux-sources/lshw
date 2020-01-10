@@ -1,0 +1,105 @@
+From 82ed613a2df110fc1d9ac19ec05235ed22626da7 Mon Sep 17 00:00:00 2001
+From: Lyonel Vincent <lyonel@ezix.org>
+Date: Thu, 20 Dec 2018 15:49:41 +0100
+Subject: [PATCH 08/10] apply Github PR42
+
+Fix typos
+
+---
+ README.md      | 2 +-
+ docs/Changelog | 4 ++--
+ src/lshw.1     | 6 +++---
+ src/lshw.sgml  | 6 +++---
+ 4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/README.md b/README.md
+index b3cddc6..5febc7f 100644
+--- a/README.md
++++ b/README.md
+@@ -23,7 +23,7 @@ Installation
+ 
+     	$ make
+ 
+-    To complile with zlib support (see below), use:
++    To compile with zlib support (see below), use:
+ 
+     	$ make ZLIB=1
+ 
+diff --git a/docs/Changelog b/docs/Changelog
+index 924b146..c11ddb2 100644
+--- a/docs/Changelog
++++ b/docs/Changelog
+@@ -83,7 +83,7 @@
+   fixed a portability problem with GTK+ [1099]
+ *  B.02.05
+   added support for DVD writers
+-  improved GUI usability (thanks to OpenUsability volonteers: Tina Trillitzsch and Florian Graessle)
++  improved GUI usability (thanks to OpenUsability volunteers: Tina Trillitzsch and Florian Graessle)
+   many new SVG icons
+   added a logo for LSHW (used as icon for gtk-lshw's windows)
+   build system updates
+@@ -209,6 +209,6 @@
+   fixes for GCC 3.2
+ * T.00.02
+   second public test release
+-  PCI busses listing
++  PCI buses listing
+ * T.00.01
+   first public test release
+diff --git a/src/lshw.1 b/src/lshw.1
+index 43e4eac..43239da 100644
+--- a/src/lshw.1
++++ b/src/lshw.1
+@@ -101,10 +101,10 @@ A list of all known PCI ID's (vendors, devices, classes and subclasses).
+ If compiled with zlib support, lshw will look for \fIpci.ids.gz\fR first, then for \fIpci.ids\fR\&.
+ .TP
+ \fB/proc/bus/pci/*\fR
+-Used to access the configuration of installed PCI busses and devices.
++Used to access the configuration of installed PCI buses and devices.
+ .TP
+ \fB/proc/ide/*\fR
+-Used to access the configuration of installed IDE busses and devices.
++Used to access the configuration of installed IDE buses and devices.
+ .TP
+ \fB/proc/scsi/*, /dev/sg*\fR
+ Used to access the configuration of installed SCSI devices.
+@@ -116,7 +116,7 @@ Used on x86 platforms to access CPU-specific configuration.
+ Used on PowerPC platforms to access OpenFirmware configuration.
+ .TP
+ \fB/proc/bus/usb/*\fR
+-Used to access the configuration of installed USB busses and devices.
++Used to access the configuration of installed USB buses and devices.
+ .TP
+ \fB/sys/*\fR
+ Used on 2.6 kernels to access hardware/driver configuration information.
+diff --git a/src/lshw.sgml b/src/lshw.sgml
+index 2f3a3ac..8c1c49e 100644
+--- a/src/lshw.sgml
++++ b/src/lshw.sgml
+@@ -171,12 +171,12 @@ If compiled with zlib support, lshw will look for <filename>pci.ids.gz</filename
+ 
+ <varlistentry><term>/proc/bus/pci/*</term>
+ <listitem><para>
+-Used to access the configuration of installed PCI busses and devices.
++Used to access the configuration of installed PCI buses and devices.
+ </para></listitem></varlistentry>
+ 
+ <varlistentry><term>/proc/ide/*</term>
+ <listitem><para>
+-Used to access the configuration of installed IDE busses and devices.
++Used to access the configuration of installed IDE buses and devices.
+ </para></listitem></varlistentry>
+ 
+ <varlistentry><term>/proc/scsi/*, /dev/sg*</term>
+@@ -196,7 +196,7 @@ Used on PowerPC platforms to access OpenFirmware configuration.
+ 
+ <varlistentry><term>/proc/bus/usb/*</term>
+ <listitem><para>
+-Used to access the configuration of installed USB busses and devices.
++Used to access the configuration of installed USB buses and devices.
+ </para></listitem></varlistentry>
+ 
+ <varlistentry><term>/sys/*</term>
+-- 
+2.17.1
+

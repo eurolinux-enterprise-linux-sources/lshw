@@ -1,0 +1,30 @@
+From 85ba5d5fb5606f993a3ac1b89763a7baf299bc06 Mon Sep 17 00:00:00 2001
+From: Lyonel Vincent <lyonel@ezix.org>
+Date: Sat, 23 Apr 2016 12:14:31 +0200
+Subject: [PATCH 05/43] update doc
+
+---
+ README.md | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/README.md b/README.md
+index 587cf97..ff07559 100644
+--- a/README.md
++++ b/README.md
+@@ -28,8 +28,11 @@ Installation
+     	$ make
+     	$ make gui
+ 
+- 4. the lshw home page is http://lshw.ezix.org/
+- 5. bug reports and feature requests: http://ezix.org/project/newticket?component=lshw
++Getting help
++------------
++
++ 1. the lshw home page is http://lshw.ezix.org/
++ 2. bug reports and feature requests: http://ezix.org/project/newticket?component=lshw
+  
+    Please make sure you include enough information in your bug report: XML output from lshw is preferred over text or HTML, indicate the affected version of lshw, your platform (i386, x86-64, PA-RISC, PowerPC, etc.) and your distribution.
+ 
+-- 
+2.10.2
+

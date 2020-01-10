@@ -1,0 +1,34 @@
+From 26f621009875f3bf1312d64750734420cdd1de03 Mon Sep 17 00:00:00 2001
+From: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
+Date: Tue, 16 Jan 2018 15:29:36 +0530
+Subject: [PATCH 2/5] devtree: Revert "vendor" property for Power System
+
+Commit f95aa917 removed vendor property for Power System PowerNV platform.
+We have "/vendor" property in device tree which gives Vendor name.
+
+Hence revert changes. Note that this only reverts "vendor" property for
+particular platform and no side effect on other platform.
+
+Fixes: f95aa917 (merge patches from beaker-fork)
+CC: Lyonel Vincent <lyonel@ezix.org>
+Signed-off-by: Vasant Hegde <hegdevasant@linux.vnet.ibm.com>
+---
+ src/core/device-tree.cc | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index e14a3b3..2981130 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -1432,6 +1432,8 @@ bool scan_device_tree(hwNode & n)
+   get_ibm_model(n);
+   if (matches(get_string(DEVICETREE "/compatible"), "^ibm,powernv"))
+   {
++    n.setVendor(get_string(DEVICETREE "/vendor", "IBM"));
++
+     if (exists(DEVICETREE "/model-name"))
+       n.setProduct(n.getProduct() + " (" +
+ 		   hw::strip(get_string(DEVICETREE "/model-name")) + ")");
+-- 
+1.8.3.1
+

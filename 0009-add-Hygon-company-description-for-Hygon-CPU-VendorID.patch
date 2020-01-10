@@ -1,0 +1,33 @@
+From 65de9679d57ceb1fab80f63aa95e519566abd870 Mon Sep 17 00:00:00 2001
+From: Lianbo Jiang <lijiang@redhat.com>
+Date: Thu, 21 Feb 2019 10:12:15 +0800
+Subject: [PATCH 09/10] add Hygon company description for Hygon CPU VendorID
+ checking
+
+Backport this patch from upstream.
+
+    commit 4a415a6725fd88e9219e6af92dcdaf88e0dff36e
+    Author: hygonsoc <hygonsoc@gmail.com>
+    Date:   Wed Dec 26 00:08:00 2018 +0800
+
+Signed-off-by: Lianbo Jiang <lijiang@redhat.com>
+---
+ src/core/cpuinfo.cc | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/core/cpuinfo.cc b/src/core/cpuinfo.cc
+index 4ad3376..a1c634f 100644
+--- a/src/core/cpuinfo.cc
++++ b/src/core/cpuinfo.cc
+@@ -456,6 +456,8 @@ string value)
+       cpu->setVendorId(value);
+       if (value == "AuthenticAMD")
+         value = "Advanced Micro Devices [AMD]";
++      if (value == "HygonGenuine")
++        value = "Hygon";
+       if (value == "GenuineIntel")
+         value = "Intel Corp.";
+       cpu->setVendor(value);
+-- 
+2.17.1
+

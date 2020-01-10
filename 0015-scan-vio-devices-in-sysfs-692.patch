@@ -1,0 +1,152 @@
+From 4ab4314e39f41045ef0e60d0a4500b204e26b313 Mon Sep 17 00:00:00 2001
+From: Dan Callaghan <dcallagh@redhat.com>
+Date: Fri, 10 Jul 2015 12:37:55 +1000
+Subject: [PATCH 15/26] scan vio devices in sysfs (#692)
+
+---
+ src/core/Makefile |  5 +++--
+ src/core/main.cc  |  4 ++++
+ src/core/sysfs.cc |  3 +++
+ src/core/vio.cc   | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/core/vio.h    |  8 ++++++++
+ 5 files changed, 69 insertions(+), 2 deletions(-)
+ create mode 100644 src/core/vio.cc
+ create mode 100644 src/core/vio.h
+
+diff --git a/src/core/Makefile b/src/core/Makefile
+index da34a55..643067b 100644
+--- a/src/core/Makefile
++++ b/src/core/Makefile
+@@ -8,7 +8,7 @@ LDFLAGS=
+ LDSTATIC=
+ LIBS=
+ 
+-OBJS = hw.o main.o print.o mem.o dmi.o device-tree.o cpuinfo.o osutils.o pci.o version.o cpuid.o ide.o cdrom.o pcmcia-legacy.o scsi.o dasd.o disk.o spd.o network.o isapnp.o pnp.o fb.o options.o usb.o sysfs.o display.o heuristics.o parisc.o cpufreq.o partitions.o blockio.o lvm.o ideraid.o pcmcia.o volumes.o mounts.o smp.o abi.o jedec.o dump.o fat.o virtio.o
++OBJS = hw.o main.o print.o mem.o dmi.o device-tree.o cpuinfo.o osutils.o pci.o version.o cpuid.o ide.o cdrom.o pcmcia-legacy.o scsi.o dasd.o disk.o spd.o network.o isapnp.o pnp.o fb.o options.o usb.o sysfs.o display.o heuristics.o parisc.o cpufreq.o partitions.o blockio.o lvm.o ideraid.o pcmcia.o volumes.o mounts.o smp.o abi.o jedec.o dump.o fat.o virtio.o vio.o
+ ifeq ($(SQLITE), 1)
+ 	OBJS+= db.o
+ endif
+@@ -37,7 +37,7 @@ hw.o: hw.h osutils.h version.h config.h options.h heuristics.h
+ main.o: hw.h print.h version.h options.h mem.h dmi.h cpuinfo.h cpuid.h
+ main.o: device-tree.h pci.h pcmcia.h pcmcia-legacy.h ide.h scsi.h spd.h
+ main.o: network.h isapnp.h fb.h usb.h sysfs.h display.h parisc.h cpufreq.h
+-main.o: ideraid.h mounts.h smp.h abi.h dasd.h virtio.h pnp.h
++main.o: ideraid.h mounts.h smp.h abi.h dasd.h virtio.h pnp.h vio.h
+ print.o: print.h hw.h options.h version.h osutils.h config.h
+ mem.o: version.h config.h mem.h hw.h
+ dmi.o: version.h config.h dmi.h hw.h osutils.h
+@@ -77,3 +77,4 @@ abi.o: version.h abi.h hw.h osutils.h
+ jedec.o: jedec.h
+ dasd.o: dasd.h disk.h hw.h osutils.h
+ virtio.o: version.h hw.h sysfs.h disk.h virtio.h
++vio.o: version.h hw.h sysfs.h vio.h
+diff --git a/src/core/main.cc b/src/core/main.cc
+index 7008933..3c88f4c 100644
+--- a/src/core/main.cc
++++ b/src/core/main.cc
+@@ -42,6 +42,7 @@
+ #include "ideraid.h"
+ #include "mounts.h"
+ #include "virtio.h"
++#include "vio.h"
+ #include "smp.h"
+ #include "abi.h"
+ #include "dasd.h"
+@@ -114,6 +115,9 @@ bool scan_system(hwNode & system)
+     status("Virtual I/O (VIRTIO) devices");
+     if (enabled("virtio"))
+       scan_virtio(computer);
++    status("IBM Virtual I/O (VIO)");
++    if (enabled("vio"))
++      scan_vio(computer);
+     status("kernel device tree (sysfs)");
+     if (enabled("sysfs"))
+       scan_sysfs(computer);
+diff --git a/src/core/sysfs.cc b/src/core/sysfs.cc
+index ed2c600..a2eca6c 100644
+--- a/src/core/sysfs.cc
++++ b/src/core/sysfs.cc
+@@ -146,6 +146,9 @@ static string sysfstobusinfo(const string & path)
+       return "virtio@" + name;
+   }
+ 
++  if (bustype == "vio")
++    return string("vio@") + basename(path.c_str());
++
+   return "";
+ }
+ 
+diff --git a/src/core/vio.cc b/src/core/vio.cc
+new file mode 100644
+index 0000000..e70640f
+--- /dev/null
++++ b/src/core/vio.cc
+@@ -0,0 +1,51 @@
++#include "version.h"
++#include "hw.h"
++#include "sysfs.h"
++#include "vio.h"
++
++#include <vector>
++
++__ID("@(#) $Id$");
++
++using namespace std;
++
++
++bool scan_vio(hwNode & n)
++{
++  vector < sysfs::entry > entries = sysfs::entries_by_bus("vio");
++
++  if (entries.empty())
++    return false;
++
++  for (vector < sysfs::entry >::iterator it = entries.begin();
++      it != entries.end(); ++it)
++  {
++    const sysfs::entry & e = *it;
++
++    if (e.name() == "vio")
++      continue; // skip root device
++
++    string name = e.string_attr("name");
++    if (name.empty())
++      name = e.name();
++
++    hwNode device(name);
++    device.setDescription("Virtual I/O device (" + name + ")");
++
++    string businfo = e.businfo();
++    if (!businfo.empty())
++      device.setBusInfo(businfo);
++
++    string driver = e.driver();
++    if (!driver.empty())
++      device.setConfig("driver", driver);
++
++    string devicetree_node = e.string_attr("devspec");
++    if (!devicetree_node.empty() && devicetree_node[0] == '/')
++      device.setLogicalName("/proc/device-tree" + devicetree_node);
++
++    n.addChild(device);
++  }
++
++  return true;
++}
+diff --git a/src/core/vio.h b/src/core/vio.h
+new file mode 100644
+index 0000000..d220f19
+--- /dev/null
++++ b/src/core/vio.h
+@@ -0,0 +1,8 @@
++#ifndef _VIO_H_
++#define _VIO_H_
++
++#include "hw.h"
++
++bool scan_vio(hwNode &);
++
++#endif
+-- 
+2.10.2
+

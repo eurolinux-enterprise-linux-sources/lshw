@@ -1,0 +1,161 @@
+From 702382ac8b5385ce15f807016582b54793141c4b Mon Sep 17 00:00:00 2001
+From: Dan Callaghan <dcallagh@redhat.com>
+Date: Mon, 13 Jul 2015 15:06:59 +1000
+Subject: [PATCH 18/26] guess memory size from memory hotplug info (#694)
+
+---
+ src/core/Makefile |  2 +-
+ src/core/mem.cc   | 35 +++++++++++++++++++++++++++++++++--
+ src/core/sysfs.cc | 16 ++++++++++++++++
+ src/core/sysfs.h  |  2 ++
+ 4 files changed, 52 insertions(+), 3 deletions(-)
+
+diff --git a/src/core/Makefile b/src/core/Makefile
+index 2d95a80..884a963 100644
+--- a/src/core/Makefile
++++ b/src/core/Makefile
+@@ -39,7 +39,7 @@ main.o: device-tree.h pci.h pcmcia.h pcmcia-legacy.h ide.h scsi.h spd.h
+ main.o: network.h isapnp.h fb.h usb.h sysfs.h display.h parisc.h cpufreq.h
+ main.o: ideraid.h mounts.h smp.h abi.h s390.h virtio.h pnp.h vio.h
+ print.o: print.h hw.h options.h version.h osutils.h config.h
+-mem.o: version.h config.h mem.h hw.h
++mem.o: version.h config.h mem.h hw.h sysfs.h
+ dmi.o: version.h config.h dmi.h hw.h osutils.h
+ device-tree.o: version.h device-tree.h hw.h osutils.h
+ cpuinfo.o: version.h cpuinfo.h hw.h osutils.h
+diff --git a/src/core/mem.cc b/src/core/mem.cc
+index 686cc16..72bfb35 100644
+--- a/src/core/mem.cc
++++ b/src/core/mem.cc
+@@ -5,9 +5,10 @@
+  * sources:
+  * - the size of /proc/kcore
+  * - the value returned by the sysconf libc function
++ * - the sum of sizes of kernel hotplug memory blocks
+  * - the sum of sizes of individual memory banks
+  *
+- * NOTE: Except in last case, this guess can be widely inaccurate, as the
++ * NOTE: In the first two cases this guess can be widely inaccurate, as the
+  * kernel itself limits the memory addressable by userspace processes.
+  * Because of that, this module reports the biggest value found if it can't
+  * access the size of individual memory banks (information filled in by other
+@@ -17,6 +18,7 @@
+ 
+ #include "version.h"
+ #include "config.h"
++#include "sysfs.h"
+ #include "mem.h"
+ #include <sys/types.h>
+ #include <sys/stat.h>
+@@ -52,6 +54,31 @@ static unsigned long long get_sysconf_size()
+ }
+ 
+ 
++static unsigned long long get_hotplug_size()
++{
++  vector < sysfs::entry > entries = sysfs::entries_by_bus("memory");
++
++  if (entries.empty())
++    return 0;
++
++  unsigned long long memblocksize =
++    sysfs::entry::byPath("/system/memory").hex_attr("block_size_bytes");
++  if (memblocksize == 0)
++    return 0;
++
++  unsigned long long totalsize = 0;
++  for (vector < sysfs::entry >::iterator it = entries.begin();
++      it != entries.end(); ++it)
++  {
++    const sysfs::entry & e = *it;
++    if (e.string_attr("online") != "1")
++      continue;
++    totalsize += memblocksize;
++  }
++  return totalsize;
++}
++
++
+ static unsigned long long count_memorybanks_size(hwNode & n)
+ {
+   hwNode *memory = n.getChild("core/memory");
+@@ -93,9 +120,11 @@ bool scan_memory(hwNode & n)
+   hwNode *memory = n.getChild("core/memory");
+   unsigned long long logicalmem = 0;
+   unsigned long long kcore = 0;
++  unsigned long long hotplug_size = 0;
+ 
+   logicalmem = get_sysconf_size();
+   kcore = get_kcore_size();
++  hotplug_size = get_hotplug_size();
+   count_memorybanks_size(n);
+   claim_memory(n);
+ 
+@@ -127,7 +156,9 @@ bool scan_memory(hwNode & n)
+     if (memory->getSize() > logicalmem)           // we already have a value
+       return true;
+ 
+-    if ((logicalmem == 0)
++    if (hotplug_size > logicalmem)
++      memory->setSize(hotplug_size);
++    else if ((logicalmem == 0)
+       || ((kcore > logicalmem) && (kcore < 2 * logicalmem)))
+       memory->setSize(kcore);
+     else
+diff --git a/src/core/sysfs.cc b/src/core/sysfs.cc
+index fb7f2bb..d17d33d 100644
+--- a/src/core/sysfs.cc
++++ b/src/core/sysfs.cc
+@@ -239,6 +239,13 @@ entry entry::byClass(string devclass, string devname)
+ }
+ 
+ 
++entry entry::byPath(string path)
++{
++  entry e(fs.path + "/devices" + path);
++  return e;
++}
++
++
+ entry::entry(const string & devpath)
+ {
+   This = new entry_i;
+@@ -318,6 +325,15 @@ string entry::string_attr(const string & name, const string & def) const
+ }
+ 
+ 
++unsigned long long entry::hex_attr(const string & name, unsigned long long def) const
++{
++  string val = string_attr(name, "");
++  if (val.empty())
++    return def;
++  return strtoull(val.c_str(), NULL, 16);
++}
++
++
+ vector < string > entry::multiline_attr(const string & name) const
+ {
+   vector < string > lines;
+diff --git a/src/core/sysfs.h b/src/core/sysfs.h
+index 7ceb395..a6d69ed 100644
+--- a/src/core/sysfs.h
++++ b/src/core/sysfs.h
+@@ -15,6 +15,7 @@ namespace sysfs
+ 
+       static entry byBus(string devbus, string devname);
+       static entry byClass(string devclass, string devname);
++      static entry byPath(string path);
+ 
+       entry & operator =(const entry &);
+       entry(const entry &);
+@@ -28,6 +29,7 @@ namespace sysfs
+       entry parent() const;
+       string name_in_class(const string &) const;
+       string string_attr(const string & name, const string & def = "") const;
++      unsigned long long hex_attr(const string & name, unsigned long long def = 0) const;
+       vector < string > multiline_attr(const string & name) const;
+ 
+       struct entry_i * This;
+-- 
+2.10.2
+

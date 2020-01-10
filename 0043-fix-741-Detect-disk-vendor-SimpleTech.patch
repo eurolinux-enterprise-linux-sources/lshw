@@ -1,0 +1,41 @@
+From b1eab6372d6ac9bda3c04f77db7ed54a566028d6 Mon Sep 17 00:00:00 2001
+From: Lyonel Vincent <lyonel@ezix.org>
+Date: Sat, 28 Jan 2017 01:29:14 +0100
+Subject: [PATCH 43/43] fix #741 (Detect disk vendor SimpleTech)
+
+---
+ src/core/heuristics.cc | 3 ++-
+ src/core/ideraid.cc    | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/core/heuristics.cc b/src/core/heuristics.cc
+index 45b39a4..bd7bf6c 100644
+--- a/src/core/heuristics.cc
++++ b/src/core/heuristics.cc
+@@ -92,7 +92,8 @@ hwNode * guessParent(const hwNode & child, hwNode & base)
+ 
+ static const char *disk_manufacturers[] =
+ {
+-  "^ST.+", "Seagate",
++  "^ST(?!I\\ ).+", "Seagate",
++  "^STI\\ .+", "SimpleTech",
+   "^D...-.+", "IBM",
+   "^IBM.+", "IBM",
+   "^HITACHI.+", "Hitachi",
+diff --git a/src/core/ideraid.cc b/src/core/ideraid.cc
+index 080f4da..5cff28f 100644
+--- a/src/core/ideraid.cc
++++ b/src/core/ideraid.cc
+@@ -454,7 +454,8 @@ static bool probe_port(unsigned controller, unsigned disknum, hwNode & parent)
+ 
+ static const char *manufacturers[] =
+ {
+-  "^ST.+", "Seagate",
++  "^ST(?!I\\ ).+", "Seagate",
++  "^STI\\ .+", "SimpleTech",
+   "^D...-.+", "IBM",
+   "^IBM.+", "IBM",
+   "^HITACHI.+", "Hitachi",
+-- 
+2.10.2
+
