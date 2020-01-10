@@ -1,0 +1,289 @@
+From e1ddfbef8bb460dec235628bd106e9e1b3aa483a Mon Sep 17 00:00:00 2001
+From: Dan Callaghan <dcallagh@redhat.com>
+Date: Wed, 8 Jul 2015 21:00:55 +1000
+Subject: [PATCH 3/4] refactored sysfs::entry to always store resolved device
+ path
+
+The sysfs::entry will always be pointing at the fully resolved path
+under /sys/devices, which makes other sysfs operations like finding the
+parent device and checking attributes simpler.
+---
+ src/core/network.cc |  2 +-
+ src/core/osutils.cc | 13 +++++++
+ src/core/osutils.h  |  1 +
+ src/core/scsi.cc    |  2 +-
+ src/core/sysfs.cc   | 98 +++++++++++++++--------------------------------------
+ src/core/sysfs.h    |  7 ++--
+ 6 files changed, 49 insertions(+), 74 deletions(-)
+
+diff --git a/src/core/network.cc b/src/core/network.cc
+index c636514..230edf2 100644
+--- a/src/core/network.cc
++++ b/src/core/network.cc
+@@ -321,7 +321,7 @@ bool scan_network(hwNode & n)
+       interface.claim();
+       interface.addHint("icon", string("network"));
+ 
+-      string businfo = sysfs_getbusinfo(sysfs::entry::byClass("net", interface.getLogicalName()));
++      string businfo = sysfs::entry::byClass("net", interface.getLogicalName()).businfo();
+       interface.setBusInfo(businfo);
+ 
+ //scan_mii(fd, interface);
+diff --git a/src/core/osutils.cc b/src/core/osutils.cc
+index c9543b9..504fffd 100644
+--- a/src/core/osutils.cc
++++ b/src/core/osutils.cc
+@@ -10,6 +10,7 @@
+ #include <limits.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <libgen.h>
+ #include <regex.h>
+ #include <ctype.h>
+ #include <stdio.h>
+@@ -413,6 +414,18 @@ string realpath(const string & path)
+ }
+ 
+ 
++string dirname(const string & path)
++{
++  size_t len = path.length();
++  char *buffer = new char[len + 1];
++  path.copy(buffer, len);
++  buffer[len] = '\0';
++  string result = dirname(buffer);
++  delete buffer;
++  return result;
++}
++
++
+ string spaces(unsigned int count, const string & space)
+ {
+   string result = "";
+diff --git a/src/core/osutils.h b/src/core/osutils.h
+index 1eb59c0..549258e 100644
+--- a/src/core/osutils.h
++++ b/src/core/osutils.h
+@@ -14,6 +14,7 @@ bool exists(const std::string & path);
+ bool samefile(const std::string & path1, const std::string & path2);
+ std::string readlink(const std::string & path);
+ std::string realpath(const std::string & path);
++std::string dirname(const std::string & path);
+ bool loadfile(const std::string & file, std::vector < std::string > &lines);
+ 
+ size_t splitlines(const std::string & s,
+diff --git a/src/core/scsi.cc b/src/core/scsi.cc
+index d85fcc8..4aaec81 100644
+--- a/src/core/scsi.cc
++++ b/src/core/scsi.cc
+@@ -841,7 +841,7 @@ static bool scan_hosts(hwNode & node)
+ 
+           if (!controller)
+           {
+-            string parentbusinfo = sysfs_getbusinfo(sysfs::entry::byClass("scsi_host", host_kname(number)));
++            string parentbusinfo = sysfs::entry::byClass("scsi_host", host_kname(number)).businfo();
+ 
+             controller = node.findChildByBusInfo(parentbusinfo);
+           }
+diff --git a/src/core/sysfs.cc b/src/core/sysfs.cc
+index 0c14a51..79c664e 100644
+--- a/src/core/sysfs.cc
++++ b/src/core/sysfs.cc
+@@ -13,7 +13,6 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <dirent.h>
+-#include <libgen.h>
+ #include <sys/stat.h>
+ #include <sys/types.h>
+ #include <sys/mount.h>
+@@ -24,9 +23,7 @@ using namespace sysfs;
+ 
+ struct sysfs::entry_i
+ {
+-  string devclass;
+-  string devbus;
+-  string devname;
++  string devpath;
+ };
+ 
+ struct sysfs_t
+@@ -102,7 +99,7 @@ static string sysfs_getbustype(const string & path)
+   {
+     devname =
+       string(fs.path + "/bus/") + string(namelist[i]->d_name) +
+-      "/devices/" + basename((char *) path.c_str());
++      "/devices/" + basename(path.c_str());
+ 
+     if (samefile(devname, path))
+       return string(namelist[i]->d_name);
+@@ -144,48 +141,15 @@ static string sysfstobusinfo(const string & path)
+ }
+ 
+ 
+-static string sysfs_getbusinfo_byclass(const string & devclass, const string & devname)
++string entry::businfo() const
+ {
+-  string device =
+-    fs.path + string("/class/") + devclass + string("/") + devname + "/device";
+-  string result = "";
+-  int i = 0;
+-
+-  while((result == "") && (i<2))                  // device may point to /businfo or /businfo/devname
+-  {
+-    if(!exists(device)) return "";
+-    result = sysfstobusinfo(realpath(device));
+-    device += "/../" + devname + "/..";
+-    i++;
+-  }
+-
++  string result = sysfstobusinfo(This->devpath);
++  if (result.empty())
++    result = sysfstobusinfo(dirname(This->devpath));
+   return result;
+ }
+ 
+ 
+-static string sysfs_getbusinfo_bybus(const string & devbus, const string & devname)
+-{
+-  string device =
+-    fs.path + string("/bus/") + devbus + string("/devices/") + devname;
+-  char buffer[PATH_MAX + 1];
+-
+-  if (!realpath(device.c_str(), buffer))
+-    return "";
+-
+-  return sysfstobusinfo(hw::strip(buffer));
+-}
+-
+-
+-string sysfs_getbusinfo(const entry & e)
+-{
+-  if(e.This->devclass != "")
+-    return sysfs_getbusinfo_byclass(e.This->devclass, e.This->devname);
+-  if(e.This->devbus != "")
+-    return sysfs_getbusinfo_bybus(e.This->devbus, e.This->devname);
+-  return "";
+-}
+-
+-
+ static string finddevice(const string & name, const string & root = "")
+ {
+   struct dirent **namelist;
+@@ -229,47 +193,33 @@ string sysfs_finddevice(const string & name)
+ }
+ 
+ 
+-string sysfs_getdriver(const string & devclass,
+-const string & devname)
++string entry::driver() const
+ {
+-  string driverpath =
+-    fs.path + string("/class/") + devclass + string("/") + devname + "/";
+-  string driver = driverpath + "/driver";
+-  char buffer[PATH_MAX + 1];
+-  int namelen = 0;
+-
+-  if ((namelen = readlink(driver.c_str(), buffer, sizeof(buffer))) < 0)
++  string driverlink = This->devpath + "/driver";
++  if (!exists(driverlink))
+     return "";
+-
+-  return string(basename(buffer));
++  return basename(readlink(driverlink).c_str());
+ }
+ 
+ 
+ entry entry::byBus(string devbus, string devname)
+ {
+-  entry e;
+-
+-  e.This->devbus = devbus;
+-  e.This->devname = devname;
+-
++  entry e(fs.path + "/bus/" + devbus + "/devices/" + devname);
+   return e;
+ }
+ 
+ 
+ entry entry::byClass(string devclass, string devname)
+ {
+-  entry e;
+-
+-  e.This->devclass = devclass;
+-  e.This->devname = devname;
+-
++  entry e(fs.path + "/class/" + devclass + "/" + devname + "/device");
+   return e;
+ }
+ 
+ 
+-entry::entry()
++entry::entry(const string & devpath)
+ {
+   This = new entry_i;
++  This->devpath = realpath(devpath);
+ }
+ 
+ 
+@@ -296,15 +246,23 @@ entry::~entry()
+ 
+ bool entry::hassubdir(const string & s)
+ {
+-  if(This->devclass != "")
+-    return exists(fs.path + string("/class/") + This->devclass + string("/") + This->devname + "/" + s);
+-  
+-  if(This->devbus != "")
+-    return exists(fs.path + string("/bus/") + This->devbus + string("/devices/") + This->devname + string("/") + s);
++  return exists(This->devpath + "/" + s);
++}
+ 
+-  return false;
++
++string entry::name() const
++{
++  return basename(This->devpath.c_str());
++}
++
++
++entry entry::parent() const
++{
++  entry e(dirname(This->devpath));
++  return e;
+ }
+ 
++
+ bool scan_sysfs(hwNode & n)
+ {
+   return false;
+diff --git a/src/core/sysfs.h b/src/core/sysfs.h
+index 08d2bc3..31946a2 100644
+--- a/src/core/sysfs.h
++++ b/src/core/sysfs.h
+@@ -21,11 +21,15 @@ namespace sysfs
+       ~entry();
+ 
+       bool hassubdir(const string &);
++      string name() const;
++      string businfo() const;
++      string driver() const;
++      entry parent() const;
+ 
+       struct entry_i * This;
+ 
+     private:
+-      entry();
++      entry(const string &);
+ 
+   };
+ 
+@@ -34,6 +38,5 @@ namespace sysfs
+ 
+ bool scan_sysfs(hwNode & n);
+ 
+-std::string sysfs_getbusinfo(const sysfs::entry &);
+ std::string sysfs_finddevice(const string &name);
+ #endif
+-- 
+2.7.3
+

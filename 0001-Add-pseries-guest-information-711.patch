@@ -1,0 +1,61 @@
+From d15668eb9569fd7d8259c3b5ca669781081d81c7 Mon Sep 17 00:00:00 2001
+From: Lyonel Vincent <lyonel@ezix.org>
+Date: Fri, 22 Apr 2016 17:09:50 +0200
+Subject: [PATCH] Add pseries-guest information  (#711)
+
+ * host information (serial# and model)
+ * guest information (UUID and hypervisor)
+---
+ src/core/device-tree.cc | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index 2d1e52b..2823233 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -623,6 +623,42 @@ bool scan_device_tree(hwNode & n)
+       n.addCapability("opal", "OPAL firmware");
+     }
+   }
++  else if(matches(get_string(DEVICETREE "/compatible"), "qemu,pseries"))
++  {
++    string product;
++
++    if ( exists(DEVICETREE "/host-serial") )
++      n.setSerial(get_string(DEVICETREE "/host-serial"));
++
++    if ( exists( DEVICETREE "/vm,uuid") )
++      n.setConfig("uuid", get_string(DEVICETREE "/vm,uuid"));
++
++    n.setVendor(get_string(DEVICETREE "/vendor", "IBM"));
++
++    if ( exists(DEVICETREE "/hypervisor/compatible") ) {
++      product = get_string(DEVICETREE "/hypervisor/compatible");
++      product = product.substr(0, product.size()-1);
++    }
++
++    if ( exists(DEVICETREE "/host-model") ) {
++      product += " Model# ";
++      product += get_string(DEVICETREE "/host-model");
++    }
++
++    if (product != "")
++      n.setProduct(product);
++
++    n.setDescription("pSeries Guest");
++
++    if (core)
++    {
++      core->addHint("icon", string("board"));
++      scan_devtree_root(*core);
++      scan_devtree_cpu(*core);
++      core->addCapability("qemu", "QEMU virtualization");
++      core->addCapability("guest", "Virtualization guest");
++    }
++  }
+   else
+   {
+     n.setVendor(get_string(DEVICETREE "/copyright", n.getVendor()));
+-- 
+1.8.3.1
+

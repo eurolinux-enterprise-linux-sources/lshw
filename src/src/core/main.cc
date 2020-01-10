@@ -40,15 +40,13 @@
 #include "cpufreq.h"
 #include "ideraid.h"
 #include "mounts.h"
-#include "virtio.h"
 #include "smp.h"
 #include "abi.h"
-#include "dasd.h"
 
 #include <unistd.h>
 #include <stdio.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: main.cc 1953 2008-05-04 20:00:55Z lyonel $");
 
 bool scan_system(hwNode & system)
 {
@@ -107,9 +105,6 @@ bool scan_system(hwNode & system)
     status("PCMCIA");
     if (enabled("pcmcia-legacy"))
       scan_pcmcialegacy(computer);
-    status("Virtual I/O (VIRTIO) devices");
-    if (enabled("virtio"))
-      scan_virtio(computer);
     status("kernel device tree (sysfs)");
     if (enabled("sysfs"))
       scan_sysfs(computer);
@@ -124,8 +119,6 @@ bool scan_system(hwNode & system)
     status("SCSI");
     if (enabled("scsi"))
       scan_scsi(computer);
-    if (enabled("dasd"))
-      scan_dasd(computer);
     if (enabled("mounts"))
       scan_mounts(computer);
     status("Network interfaces");

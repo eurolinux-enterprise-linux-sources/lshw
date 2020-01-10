@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: cpuid.cc 2151 2010-03-15 20:26:20Z lyonel $");
 
 #if defined(__i386__) || defined(__alpha__)
 

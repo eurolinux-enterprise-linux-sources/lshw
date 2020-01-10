@@ -1,0 +1,103 @@
+From 2c38e1c6a9dd4e35685be5ba7f64e51fd0e31c1a Mon Sep 17 00:00:00 2001
+From: Jeremy Kerr <jk@ozlabs.org>
+Date: Mon, 8 Jun 2015 12:35:00 +0800
+Subject: [PATCH] lshw: Parse OPAL firmware properties from the device tree
+
+OPAL-firmware-based Power machines expose a firmware device tree node in
+/ibm,opal, containing version information and available interfaces.
+
+This change adds a function to parse information about OPAL firmware and
+add it to lshw's machine information. With a current OpenPower machine,
+we get something like this:
+
+     *-firmware
+          product: OPAL firmware
+          physical id: 1
+          version: skiboot-5.0.2
+          capabilities: opal-v2 opal-v3 prd ipmi
+
+Signed-off-by: Jeremy Kerr <jk@ozlabs.org>
+---
+ src/core/device-tree.cc | 59 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)
+
+diff --git a/src/core/device-tree.cc b/src/core/device-tree.cc
+index 8908fd1..73a98a9 100644
+--- a/src/core/device-tree.cc
++++ b/src/core/device-tree.cc
+@@ -162,6 +162,64 @@ static void scan_devtree_bootrom(hwNode & core)
+   }
+ }
+ 
++static void scan_devtree_opal_firmware(hwNode & core)
++{
++  vector < string >::iterator it;
++  vector < string > compat;
++  struct dirent **namelist;
++  int i, n;
++
++  if (!exists(DEVICETREE "/ibm,opal"))
++    return;
++
++  hwNode opal("firmware", hw::memory);
++
++  opal.setProduct("OPAL firmware");
++  if (exists(DEVICETREE "/ibm,opal/firmware/version"))
++    opal.setVersion(get_string(DEVICETREE "/ibm,opal/firmware/version"));
++
++  compat = get_strings(DEVICETREE "/ibm,opal/compatible");
++
++  for (it = compat.begin(); it != compat.end(); ++it) {
++    if (matches(*it, "^ibm,opal-v2"))
++      opal.addCapability("opal-v2");
++    if (matches(*it, "^ibm,opal-v3"))
++      opal.addCapability("opal-v3");
++  }
++
++  /* collect compatible strings from firmware sub-nodes */
++  compat.clear();
++  pushd(DEVICETREE "/ibm,opal");
++  n = scandir(".", &namelist, selectdir, alphasort);
++  popd();
++  for (i = 0; i < n; i++) {
++    string path = string(DEVICETREE "/ibm,opal/")
++                        + string(namelist[i]->d_name)
++                        + string("/compatible");
++
++    vector < string > tmp = get_strings(path);
++    compat.insert(compat.end(), tmp.begin(), tmp.end());
++
++    free(namelist[i]);
++  }
++
++  if (n >= 0)
++    free(namelist);
++
++  /* check our collected compatible strings for known capabilities */
++  for (it = compat.begin(); it != compat.end(); ++it) {
++
++    if (*it == "ibm,opal-prd")
++      opal.addCapability("prd");
++
++    if (*it == "ibm,opal-ipmi")
++      opal.addCapability("ipmi");
++  }
++
++  opal.claim();
++  core.addChild(opal);
++}
++
+ 
+ static string cpubusinfo(int cpu)
+ {
+@@ -619,6 +677,7 @@ bool scan_device_tree(hwNode & n)
+       scan_devtree_root(*core);
+       scan_devtree_memory_powernv(*core);
+       scan_devtree_cpu(*core);
++      scan_devtree_opal_firmware(*core);
+       n.addCapability("powernv", "Non-virtualized");
+       n.addCapability("opal", "OPAL firmware");
+     }
+-- 
+1.9.1
+

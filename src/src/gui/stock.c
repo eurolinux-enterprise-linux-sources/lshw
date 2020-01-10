@@ -3,7 +3,7 @@
 #include <string.h>
 #include <gtk/gtk.h>
 
-static char *id = "@(#) $Id$";
+static char *id = "@(#) $Id: stock.c 2410 2011-08-28 14:13:58Z lyonel $";
 
 #define UIFILE "gtk-lshw.ui"
 

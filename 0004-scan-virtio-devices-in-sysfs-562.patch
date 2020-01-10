@@ -1,0 +1,262 @@
+From 1d411a25389dae9d928112c800bc08d15c4612be Mon Sep 17 00:00:00 2001
+From: Dan Callaghan <dcallagh@redhat.com>
+Date: Thu, 9 Jul 2015 12:27:30 +1000
+Subject: [PATCH 4/4] scan virtio devices in sysfs (#562)
+
+---
+ src/core/Makefile  |  5 ++--
+ src/core/main.cc   |  4 +++
+ src/core/sysfs.cc  | 55 ++++++++++++++++++++++++++++++++++++++++
+ src/core/sysfs.h   |  3 +++
+ src/core/virtio.cc | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/core/virtio.h  |  8 ++++++
+ 6 files changed, 146 insertions(+), 2 deletions(-)
+ create mode 100644 src/core/virtio.cc
+ create mode 100644 src/core/virtio.h
+
+diff --git a/src/core/Makefile b/src/core/Makefile
+index e069f00..5bf5a69 100644
+--- a/src/core/Makefile
++++ b/src/core/Makefile
+@@ -8,7 +8,7 @@ LDFLAGS=
+ LDSTATIC=
+ LIBS=
+ 
+-OBJS = hw.o main.o print.o mem.o dmi.o device-tree.o cpuinfo.o osutils.o pci.o version.o cpuid.o ide.o cdrom.o pcmcia-legacy.o scsi.o disk.o spd.o network.o isapnp.o pnp.o fb.o options.o usb.o sysfs.o display.o heuristics.o parisc.o cpufreq.o partitions.o blockio.o lvm.o ideraid.o pcmcia.o volumes.o mounts.o smp.o abi.o jedec.o dump.o fat.o
++OBJS = hw.o main.o print.o mem.o dmi.o device-tree.o cpuinfo.o osutils.o pci.o version.o cpuid.o ide.o cdrom.o pcmcia-legacy.o scsi.o disk.o spd.o network.o isapnp.o pnp.o fb.o options.o usb.o sysfs.o display.o heuristics.o parisc.o cpufreq.o partitions.o blockio.o lvm.o ideraid.o pcmcia.o volumes.o mounts.o smp.o abi.o jedec.o dump.o fat.o virtio.o
+ ifeq ($(SQLITE), 1)
+ 	OBJS+= db.o
+ endif
+@@ -37,7 +37,7 @@ hw.o: hw.h osutils.h version.h config.h options.h heuristics.h
+ main.o: hw.h print.h version.h options.h mem.h dmi.h cpuinfo.h cpuid.h
+ main.o: device-tree.h pci.h pcmcia.h pcmcia-legacy.h ide.h scsi.h spd.h
+ main.o: network.h isapnp.h fb.h usb.h sysfs.h display.h parisc.h cpufreq.h
+-main.o: ideraid.h mounts.h smp.h abi.h
++main.o: ideraid.h mounts.h smp.h abi.h virtio.h
+ print.o: print.h hw.h options.h version.h osutils.h config.h
+ mem.o: version.h config.h mem.h hw.h
+ dmi.o: version.h config.h dmi.h hw.h osutils.h
+@@ -75,3 +75,4 @@ smp.o: version.h smp.h hw.h osutils.h
+ smp.o: version.h smp.h hw.h osutils.h
+ abi.o: version.h abi.h hw.h osutils.h
+ jedec.o: jedec.h
++virtio.o: version.h hw.h sysfs.h disk.h virtio.h
+diff --git a/src/core/main.cc b/src/core/main.cc
+index d98b8d8..03848da 100644
+--- a/src/core/main.cc
++++ b/src/core/main.cc
+@@ -40,6 +40,7 @@
+ #include "cpufreq.h"
+ #include "ideraid.h"
+ #include "mounts.h"
++#include "virtio.h"
+ #include "smp.h"
+ #include "abi.h"
+ 
+@@ -105,6 +107,9 @@ bool scan_system(hwNode & system)
+     status("PCMCIA");
+     if (enabled("pcmcia-legacy"))
+       scan_pcmcialegacy(computer);
++    status("Virtual I/O (VIRTIO) devices");
++    if (enabled("virtio"))
++      scan_virtio(computer);
+     status("kernel device tree (sysfs)");
+     if (enabled("sysfs"))
+       scan_sysfs(computer);
+diff --git a/src/core/sysfs.cc b/src/core/sysfs.cc
+index 79c664e..acc9d00 100644
+--- a/src/core/sysfs.cc
++++ b/src/core/sysfs.cc
+@@ -137,6 +137,15 @@ static string sysfstobusinfo(const string & path)
+   if (bustype == "ide")
+     return sysfstoide(path);
+ 
++  if (bustype == "virtio")
++  {
++    string name = basename(path.c_str());
++    if (name.compare(0, 6, "virtio") == 0)
++      return "virtio@" + name.substr(6);
++    else
++      return "virtio@" + name;
++  }
++
+   return "";
+ }
+ 
+@@ -250,6 +259,33 @@ bool entry::hassubdir(const string & s)
+ }
+ 
+ 
++string entry::name_in_class(const string & classname) const
++{
++  string result = "";
++
++  string classdir = This->devpath + "/" + classname;
++  if (!pushd(classdir))
++    return result;
++
++  struct dirent **namelist = NULL;
++  int count = scandir(".", &namelist, selectdir, alphasort);
++  popd();
++
++  if (count < 0)
++    return result;
++
++  // there should be at most one
++  for (int i = 0; i < count; i++)
++  {
++    result = namelist[i]->d_name;
++    free(namelist[i]);
++  }
++  free(namelist);
++
++  return result;
++}
++
++
+ string entry::name() const
+ {
+   return basename(This->devpath.c_str());
+@@ -263,6 +299,25 @@ entry entry::parent() const
+ }
+ 
+ 
++vector < entry > sysfs::entries_by_bus(const string & busname)
++{
++  vector < entry > result;
++
++  if (!pushd(fs.path + "/bus/" + busname + "/devices"))
++    return result;
++
++  struct dirent **namelist;
++  int count;
++  count = scandir(".", &namelist, selectlink, alphasort);
++  for (int i = 0; i < count; i ++)
++  {
++    entry e = sysfs::entry::byBus(busname, namelist[i]->d_name);
++    result.push_back(e);
++  }
++  return result;
++}
++
++
+ bool scan_sysfs(hwNode & n)
+ {
+   return false;
+diff --git a/src/core/sysfs.h b/src/core/sysfs.h
+index 31946a2..a9dc573 100644
+--- a/src/core/sysfs.h
++++ b/src/core/sysfs.h
+@@ -25,6 +25,7 @@ namespace sysfs
+       string businfo() const;
+       string driver() const;
+       entry parent() const;
++      string name_in_class(const string &) const;
+ 
+       struct entry_i * This;
+ 
+@@ -33,6 +34,8 @@ namespace sysfs
+ 
+   };
+ 
++  vector < entry > entries_by_bus(const string & busname);
++
+ }                                                 // namespace sysfs
+ 
+ 
+diff --git a/src/core/virtio.cc b/src/core/virtio.cc
+new file mode 100644
+index 0000000..91d1196
+--- /dev/null
++++ b/src/core/virtio.cc
+@@ -0,0 +1,73 @@
++#include "version.h"
++#include "hw.h"
++#include "sysfs.h"
++#include "disk.h"
++#include "virtio.h"
++
++#include <vector>
++
++__ID("@(#) $Id$");
++
++using namespace std;
++
++// driver seems like the only way to guess the class
++static hw::hwClass virtio_class(const string & driver)
++{
++  if (driver == "virtio_net")
++    return hw::network;
++  if (driver == "virtio_blk")
++    return hw::disk;
++  return hw::generic;
++}
++
++static void scan_virtio_block(hwNode & device, const sysfs::entry & entry)
++{
++  string devname = entry.name_in_class("block");
++  if (devname.empty())
++    return;
++  device.setLogicalName(devname);
++  scan_disk(device);
++  device.claim();
++}
++
++bool scan_virtio(hwNode & n)
++{
++  vector < sysfs::entry > entries = sysfs::entries_by_bus("virtio");
++
++  if (entries.empty())
++    return false;
++
++  for (vector < sysfs::entry >::iterator it = entries.begin();
++      it != entries.end(); ++it)
++  {
++    const sysfs::entry & e = *it;
++
++    hwNode device(e.name());
++    device.setDescription("Virtual I/O device");
++
++    string businfo = e.businfo();
++    if (!businfo.empty())
++      device.setBusInfo(businfo);
++
++    string driver = e.driver();
++    device.setClass(virtio_class(driver));
++    if (!driver.empty())
++      device.setConfig("driver", driver);
++
++    // virtio_net devices will be claimed during network interface scanning,
++    // but we handle virtio_blk devices here because nothing else will
++    scan_virtio_block(device, e);
++
++    hwNode *parent = NULL;
++    string parent_businfo = e.parent().businfo();
++    if (!parent_businfo.empty())
++      parent = n.findChildByBusInfo(parent_businfo);
++    if (!parent)
++      parent = n.getChild("core");
++    if (!parent)
++      parent = n.addChild(hwNode("core", hw::bus));
++    parent->addChild(device);
++  }
++
++  return true;
++}
+diff --git a/src/core/virtio.h b/src/core/virtio.h
+new file mode 100644
+index 0000000..0442215
+--- /dev/null
++++ b/src/core/virtio.h
+@@ -0,0 +1,8 @@
++#ifndef _VIRTIO_H_
++#define _VIRTIO_H_
++
++#include "hw.h"
++
++bool scan_virtio(hwNode &);
++
++#endif
+-- 
+2.7.3
+

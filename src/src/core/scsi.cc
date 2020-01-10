@@ -14,7 +14,6 @@
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 #include <scsi/sg.h>
 #include <scsi/scsi.h>
@@ -28,7 +27,7 @@
 #include <string>
 #include <map>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: scsi.cc 2518 2013-03-13 20:52:25Z lyonel $");
 
 #define SG_X "/dev/sg*"
 #define SG_MAJOR 21
@@ -440,7 +439,7 @@ static u_int16_t decode_word(void *ptr)
 static bool do_inquiry(int sg_fd,
 hwNode & node)
 {
-  uint8_t rsp_buff[MX_ALLOC_LEN + 1];
+  char rsp_buff[MX_ALLOC_LEN + 1];
   int k;
   unsigned int len;
 
@@ -453,7 +452,7 @@ hwNode & node)
 
   len = (unsigned int) rsp_buff[4] + 5;
 
-  if ((len >= 36) && (len < 256))
+  if ((len > 36) && (len < 256))
   {
     memset(rsp_buff, 0, sizeof(rsp_buff));
     if (!do_inq(sg_fd, 0, 0, 0, rsp_buff, len, 1))
@@ -470,11 +469,11 @@ hwNode & node)
   if (rsp_buff[1] & 0x80)
     node.addCapability("removable", "support is removable");
 
-  node.setVendor(string((char *)rsp_buff + 8, 8));
+  node.setVendor(string(rsp_buff + 8, 8));
   if (len > 16)
-    node.setProduct(string((char *)rsp_buff + 16, 16));
+    node.setProduct(string(rsp_buff + 16, 16));
   if (len > 32)
-    node.setVersion(string((char *)rsp_buff + 32, 4));
+    node.setVersion(string(rsp_buff + 32, 4));
 
   if (ansiversion)
     node.setConfig("ansiversion", tostring(ansiversion));
@@ -482,9 +481,9 @@ hwNode & node)
   memset(rsp_buff, 0, sizeof(rsp_buff));
   if (do_inq(sg_fd, 0, 1, 0x80, rsp_buff, MX_ALLOC_LEN, 0))
   {
-    uint8_t _len = rsp_buff[3];
-    if (_len > 0)
-      node.setSerial(hw::strip(string((char *)rsp_buff + 4, _len)));
+    len = rsp_buff[3];
+    if (len > 0)
+      node.setSerial(hw::strip(string(rsp_buff + 4, len)));
   }
 
   memset(rsp_buff, 0, sizeof(rsp_buff));
@@ -495,14 +494,14 @@ hwNode & node)
     unsigned long long cyl = 0;
     unsigned long long sectors = 0;
     unsigned long rpm = 0;
-    uint8_t *end = rsp_buff + rsp_buff[0];
-    uint8_t *p = NULL;
+    u_int8_t *end = (u_int8_t *) rsp_buff + (u_int8_t) rsp_buff[0];
+    u_int8_t *p = NULL;
 
     if (rsp_buff[3] == 8)
       sectsize = decode_3_bytes(rsp_buff + 9);
 
-    p = & rsp_buff[4];
-    p += rsp_buff[3];
+    p = (u_int8_t *) & rsp_buff[4];
+    p += (u_int8_t) rsp_buff[3];
     while (p < end)
     {
       u_int8_t page = *p & 0x3F;
@@ -842,7 +841,7 @@ static bool scan_hosts(hwNode & node)
 
           if (!controller)
           {
-            string parentbusinfo = sysfs::entry::byClass("scsi_host", host_kname(number)).businfo();
+            string parentbusinfo = sysfs_getbusinfo(sysfs::entry::byClass("scsi_host", host_kname(number)));
 
             controller = node.findChildByBusInfo(parentbusinfo);
           }

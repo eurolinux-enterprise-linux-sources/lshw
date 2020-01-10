@@ -15,7 +15,7 @@
 #include <string.h>
 #include <errno.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: fb.cc 2038 2008-09-05 19:53:35Z lyonel $");
 
 #define FB_MODES_SHIFT  5                         /* 32 modes per framebuffer */
 #define FB_NUM_MINORS 256                         /* 256 Minors               */

@@ -1,0 +1,28 @@
+From 34f82be2768c14bc9d76f2f6845690b99e94d88a Mon Sep 17 00:00:00 2001
+From: Lyonel Vincent <lyonel@ezix.org>
+Date: Tue, 23 Sep 2014 19:28:06 +0000
+Subject: [PATCH] fix S/390 compilation
+
+git-svn-id: http://ezix.org/source/packages/lshw/development@2549 811e2811-9fd9-0310-a116-b6e8ac943c8b
+---
+ src/core/cpuinfo.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/core/cpuinfo.cc b/src/core/cpuinfo.cc
+index 821f455..e451247 100644
+--- a/src/core/cpuinfo.cc
++++ b/src/core/cpuinfo.cc
+@@ -101,6 +101,10 @@ string value)
+   if (id == "vendor_id")
+     s390x_vendor = value;
+ 
++  if (matches(id, "^processor"))
++    currentcpu++;
++
++  hwNode *cpu = getcpu(node, currentcpu);
+   if (cpu)
+     {
+       cpu->addHint("logo", string("s390x"));
+-- 
+2.7.3
+

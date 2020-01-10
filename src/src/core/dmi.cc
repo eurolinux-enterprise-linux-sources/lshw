@@ -82,9 +82,7 @@
 
 #include <map>
 #include <vector>
-#include <fstream>
 
-#include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -92,15 +90,13 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-__ID("@(#) $Id$");
-
-#define SYSFSDMI "/sys/firmware/dmi/tables"
+__ID("@(#) $Id: dmi.cc 2520 2013-05-08 13:32:48Z lyonel $");
 
 static int currentcpu = 0;
 
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned int u32;
 
 struct dmi_header
 {
@@ -178,7 +174,7 @@ static string cpubusinfo(int cpu)
 }
 
 
-static string dmi_uuid(const u8 * p)
+static string dmi_uuid(u8 * p)
 {
   unsigned int i = 0;
   bool valid = false;
@@ -361,7 +357,7 @@ hwNode & bios)
 }
 
 
-static void dmi_bios_features_ext(const u8 * data,
+static void dmi_bios_features_ext(u8 * data,
 int len,
 hwNode & bios)
 {
@@ -573,13 +569,8 @@ static const char *dmi_memory_device_type(u8 num)
     "",
     " DDR3",
     " FBD2",					/* 0x19 */
-    " DDR4",
-    " LPDDR",
-    " LPDDR2",
-    " LPDDR3",
-    " LPDDR4",                                        /* 0x1E */
   };
-  if (num > 0x1E)
+  if (num > 0x19)
     return "";
   return _(memory_device_type[num]);
 }
@@ -609,12 +600,6 @@ static string dmi_memory_device_detail(u16 v)
     result += " " + string(_("Cache DRAM"));
   if (v & (1 << 12))
     result += " " + string(_("Non-volatile"));
-  if (v & (1 << 13))
-    result += " " + string(_("Registered (Buffered)"));
-  if (v & (1 << 14))
-    result += " " + string(_("Unbuffered (Unregistered)"));
-  if (v & (1 << 15))
-    result += " " + string(_("LRDIMM"));
 
   return result;
 }
@@ -654,12 +639,9 @@ void dmi_chassis(u8 code, hwNode & n)
     "tca", N_("Advanced TCA"), NULL,
     "blade", N_("Blade"), NULL,		/* 0x1C */
     "enclosure", N_("Blade enclosure"), NULL,		/* 0x1D */
-    "tablet", N_("Tablet"), NULL,
-    "convertible", N_("Convertible"), NULL,
-    "detachable", N_("Detachable"), NULL,               /* 0x20 */
   };
 
-  if(code <= 0x20)
+  if(code <= 0x1D)
   {
     if(n.getDescription()=="") n.setDescription(_(chassis_type[1+3*code]));
 
@@ -671,7 +653,7 @@ void dmi_chassis(u8 code, hwNode & n)
     }
   }
 };
-static const char *dmi_processor_family(uint16_t code)
+static const char *dmi_processor_family(u8 code)
 {
   static const char *processor_family[] =
   {
@@ -705,7 +687,7 @@ static const char *dmi_processor_family(uint16_t code)
     "K6-2",
     "K6-3",
     "Athlon",
-    "AMD29000",
+    "AMD2900",
     "K6-2+",
     "Power PC",
     "Power PC 601",
@@ -719,7 +701,7 @@ static const char *dmi_processor_family(uint16_t code)
     "Core Duo mobile",
     "Core Solo mobile",
     "Atom",
-    "Core M",
+    "",
     "",
     "",
     "",
@@ -731,30 +713,30 @@ static const char *dmi_processor_family(uint16_t code)
     "Alpha 21164a",
     "Alpha 21264",
     "Alpha 21364",
-    "Turion II Ultra Dual-Core Mobile M",         /* 0x38 */
-    "Turion II Dual-Core Mobile M",
-    "Athlon II Dual-Core M",
-    "Opteron 6100",
-    "Opteron 4100",
-    "Opteron 6200",
-    "Opteron 4200",
-    "FX",
+    "",                                           /* 0x38 */
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
     "MIPS",                                       /* 0x40 */
     "MIPS R4000",
     "MIPS R4200",
     "MIPS R4400",
     "MIPS R4600",
     "MIPS R10000",
-    "C-Series",                                   /* 0x46 */
-    "E-Series",
-    "A-Series",
-    "G-Series",
-    "Z-Series",
-    "R-Series",
-    "Opteron 4300",
-    "Opteron 6300",
-    "Opteron 3300",
-    "FirePro",
+    "",                                           /* 0x46 */
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
     "SPARC",
     "SuperSPARC",
     "MicroSPARC II",
@@ -777,9 +759,9 @@ static const char *dmi_processor_family(uint16_t code)
     "68010",
     "68020",
     "68030",
-    "Athlon X4",                                  /* 0x66 */
-    "Opteron X1000",
-    "Opteron X2000 APU",
+    "",                                           /* 0x66 */
+    "",
+    "",
     "",
     "",
     "",
@@ -836,21 +818,21 @@ static const char *dmi_processor_family(uint16_t code)
     "",
     "",                                           /* 0x9F */
     "V30",
-    "Xeon 3200 Quad-Core",                        /* 0xA1 */
-    "Xeon 3000 Dual-Core",
-    "Xeon 5300 Quad-Core",
-    "Xeon 5100 Dual-Core",
-    "Xeon 5000 Dual-Core",
-    "Xeon LV Dual-Core",
-    "Xeon ULV Dual-Core",
-    "Xeon 7100 Dual-Core",
-    "Xeon 5400 Quad-Core",
-    "Xeon Quad-Core",
-    "Xeon 5200 Dual-Core",
-    "Xeon 7200 Dual-Core",
-    "Xeon 7300 Quad-Core",
-    "Xeon 7400 Quad-Core",
-    "Xeon 7400 Multi-Core",                       /* 0xAF */
+    "",                                           /* 0xA1 */
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",                                           /* 0xAF */
     "Pentium III Xeon",
     "Pentium III Speedstep",
     "Pentium 4",
@@ -879,7 +861,7 @@ static const char *dmi_processor_family(uint16_t code)
     "G4",
     "G5",
     "ESA/390 G6",                                           /* 0xCB */
-    "z/Architecture base",
+    "z/Architectur base",
     "Core i5",
     "Core i3",
     "",
@@ -903,8 +885,8 @@ static const char *dmi_processor_family(uint16_t code)
     "",
     "",
     "",
-    "Opteron 3000",
-    "AMD Sempron II",
+    "",
+    "",
     "Embedded Opteron Quad-Core",
     "Phenom Triple-Core",
     "Turion Ultra Dual-Core Mobile",
@@ -931,25 +913,13 @@ static const char *dmi_processor_family(uint16_t code)
     "",
     "",
     ""                                            /* 0xFF */
+/* master.mif has values beyond that, but they can't be used for DMI */
   };
 
-  if (code <= 0xFF)
-    return processor_family[code];
+  if (code >= 0xFF)
+    return "";
 
-  switch (code)
-  {
-    case 0x104: return "SH-3";
-    case 0x105: return "SH-4";
-    case 0x118: return "ARM";
-    case 0x119: return "StrongARM";
-    case 0x12C: return "6x86";
-    case 0x12D: return "MediaGX";
-    case 0x12E: return "MII";
-    case 0x140: return "WinChip";
-    case 0x15E: return "DSP";
-    case 0x1F4: return "Video Processor";
-    default: return "";
-  }
+  return processor_family[code];
 }
 
 
@@ -962,21 +932,42 @@ static string dmi_handle(u16 handle)
 }
 
 
-static void dmi_table(const u8 *buf,
+static void dmi_table(int fd,
+u32 base,
 int len,
+int num,
 hwNode & node,
 int dmiversionmaj,
 int dmiversionmin)
 {
+  unsigned char *buf = (unsigned char *) malloc(len);
   struct dmi_header *dm;
   hwNode *hardwarenode = NULL;
-  const u8 *data;
+  u8 *data;
   int i = 0;
   string handle;
+  u32 mmoffset = 0;
+  void *mmp = NULL;
 
   if (len == 0)
 // no data
     return;
+
+  if (buf == NULL)
+// memory exhausted
+    return;
+
+  mmoffset = base % getpagesize();
+
+  mmp = mmap(0, mmoffset + len, PROT_READ, MAP_SHARED, fd, base - mmoffset);
+  if (mmp == MAP_FAILED)
+  {
+    free(buf);
+    return;
+  }
+  memcpy(buf, (u8 *) mmp + mmoffset, len);
+
+  munmap(mmp, mmoffset + len);
 
   data = buf;
   while (data + sizeof(struct dmi_header) <= (u8 *) buf + len)
@@ -1123,11 +1114,7 @@ int dmiversionmin)
           newnode.setSlot(dmi_string(dm, data[4]));
           newnode.setDescription(_("CPU"));
           newnode.addHint("icon", string("cpu"));
-          if (dm->length >= 0x2A)
-            newnode.setProduct(dmi_processor_family(
-                (((uint16_t) data[0x29]) << 8) + data[0x28]));
-          else
-            newnode.setProduct(dmi_processor_family(data[6]));
+          newnode.setProduct(dmi_processor_family(data[6]));
           newnode.setVersion(dmi_string(dm, data[0x10]));
           newnode.setVendor(dmi_string(dm, data[7]));
           newnode.setPhysId(dm->handle);
@@ -1289,7 +1276,7 @@ int dmiversionmin)
         {
           hwNode newnode("cache",
             hw::memory);
-	  int level;
+          int level;
 
           newnode.setSlot(dmi_string(dm, data[4]));
           u = data[6] << 8 | data[5];
@@ -1304,7 +1291,6 @@ int dmiversionmin)
           if (!(u & (1 << 7)))
             newnode.disable();
 
-          newnode.setConfig("level", level);
           newnode.setSize(dmi_cache_size(data[9] | data[10] << 8));
           newnode.setCapacity(dmi_cache_size(data[7] | (data[8] << 8)));
           if ((dm->length > 0x0F) && (data[0x0F] != 0))
@@ -1425,40 +1411,11 @@ int dmiversionmin)
           newnode.setPhysId(dm->handle);
           newnode.setDescription(description);
           newnode.setSlot(dmi_memory_array_location(data[4]));
-          switch (data[6])
-          {
-            case 0x04:
-              newnode.addCapability("parity", _("Parity error correction"));
-              newnode.setConfig("errordetection", "parity");
-              break;
-            case 0x05:
-              newnode.addCapability("ecc", _("Single-bit error-correcting code (ECC)"));
-              newnode.setConfig("errordetection", "ecc");
-              break;
-            case 0x06:
-              newnode.addCapability("ecc", _("Multi-bit error-correcting code (ECC)"));
-              newnode.setConfig("errordetection", "multi-bit-ecc");
-              break;
-            case 0x07:
-              newnode.addCapability("crc", _("CRC error correction"));
-              newnode.setConfig("errordetection", "crc");
-              break;
-          }
+//printf("\t\tError Correction Type: %s\n",
+//dmi_memory_array_error_correction_type(data[6]));
           u2 = data[10] << 24 | data[9] << 16 | data[8] << 8 | data[7];
           if (u2 != 0x80000000)                   // magic value for "unknown"
             newnode.setCapacity(u2 * 1024);
-          else if (dm->length >= 0x17)
-          {
-            uint64_t capacity = (((uint64_t) data[0x16]) << 56) +
-                                (((uint64_t) data[0x15]) << 48) +
-                                (((uint64_t) data[0x14]) << 40) +
-                                (((uint64_t) data[0x13]) << 32) +
-                                (((uint64_t) data[0x12]) << 24) +
-                                (((uint64_t) data[0x11]) << 16) +
-                                (((uint64_t) data[0x10]) << 8) +
-                                data[0x0F];
-            newnode.setCapacity(capacity);
-          }
           hardwarenode->addChild(newnode);
         }
         break;
@@ -1508,12 +1465,6 @@ int dmiversionmin)
 
 // size
           u = data[13] << 8 | data[12];
-          if(u == 0x7fff) {
-             unsigned long long extendsize = (data[0x1f] << 24) | (data[0x1e] << 16) | (data[0x1d] << 8) | data[0x1c];
-             extendsize &= 0x7fffffffUL;
-             size = extendsize * 1024ULL * 1024ULL;
-          }
-	  else
           if (u != 0xffff)
             size = (1024ULL * (u & 0x7fff) * ((u & 0x8000) ? 1 : 1024ULL));
           description += string(dmi_memory_device_form_factor(data[14]));
@@ -1762,101 +1713,10 @@ int dmiversionmin)
     data += 2;
     i++;
   }
+  free(buf);
 }
 
 
-static bool smbios_entry_point(const u8 *buf, size_t len,
-    hwNode & n, u16 & dmimaj, u16 & dmimin,
-    uint32_t & table_len, uint64_t & table_base)
-{
-  u8 smmajver = 0;
-  u8 smminver = 0;
-
-  if (len >= 24 && memcmp(buf, "_SM3_", 5) == 0 && checksum(buf, buf[6]))
-  {
-    // SMBIOS 3.0 entry point structure (64-bit)
-    dmimaj = smmajver = buf[7];
-    dmimin = smminver = buf[8];
-    table_len = (((uint32_t) buf[15]) << 24) +
-                (((uint32_t) buf[14]) << 16) +
-                (((uint32_t) buf[13]) << 8) +
-                (uint32_t) buf[12];
-    table_base = (((uint64_t) buf[23]) << 56) +
-                 (((uint64_t) buf[22]) << 48) +
-                 (((uint64_t) buf[21]) << 40) +
-                 (((uint64_t) buf[20]) << 32) +
-                 (((uint64_t) buf[19]) << 24) +
-                 (((uint64_t) buf[18]) << 16) +
-                 (((uint64_t) buf[17]) << 8) +
-                 (uint64_t) buf[16];
-  }
-  else if (len >= 31 &&
-      memcmp(buf, "_SM_", 4) == 0 &&
-      memcmp(buf + 16, "_DMI_", 5) == 0 &&
-      checksum(buf + 16, 15))
-  {
-    // SMBIOS 2.1 entry point structure
-    dmimaj = smmajver = buf[6];
-    dmimin = smminver = buf[7];
-    table_len = (((uint16_t) buf[23]) << 8) +
-                (uint16_t) buf[22];
-    table_base = (((uint32_t) buf[27]) << 24) +
-                 (((uint32_t) buf[26]) << 16) +
-                 (((uint32_t) buf[25]) << 8) +
-                 (uint32_t) buf[24];
-  }
-
-  if (smmajver > 0)
-  {
-    char buffer[20];
-    snprintf(buffer, sizeof(buffer), "%d.%d", smmajver, smminver);
-    n.addCapability("smbios-"+string(buffer), "SMBIOS version "+string(buffer));
-    snprintf(buffer, sizeof(buffer), "%d.%d", dmimaj, dmimin);
-    n.addCapability("dmi-"+string(buffer), "DMI version "+string(buffer));
-
-    return true;
-  }
-
-  return false;
-}
-
-
-static bool scan_dmi_sysfs(hwNode & n)
-{
-  if (!exists(SYSFSDMI "/smbios_entry_point") || !exists(SYSFSDMI "/DMI"))
-    return false;
-
-  uint32_t table_len = 0;
-  uint64_t table_base = 0;
-  u16 dmimaj = 0, dmimin = 0;
-
-  ifstream ep_stream(SYSFSDMI "/smbios_entry_point",
-      ifstream::in | ifstream::binary | ifstream::ate);
-  ifstream::pos_type ep_len = ep_stream.tellg();
-  vector < u8 > ep_buf(ep_len);
-  ep_stream.seekg(0, ifstream::beg);
-  ep_stream.read((char *)ep_buf.data(), ep_len);
-  if (!ep_stream)
-    return false;
-  if (!smbios_entry_point(ep_buf.data(), ep_len, n,
-        dmimaj, dmimin, table_len, table_base))
-    return false;
-
-  ifstream dmi_stream(SYSFSDMI "/DMI",
-      ifstream::in | ifstream::binary | ifstream::ate);
-  ifstream::pos_type dmi_len = dmi_stream.tellg();
-  vector < u8 > dmi_buf(dmi_len);
-  dmi_stream.seekg(0, ifstream::beg);
-  dmi_stream.read((char *)dmi_buf.data(), dmi_len);
-  if (!dmi_stream)
-    return false;
-  dmi_table(dmi_buf.data(), dmi_len, n, dmimaj, dmimin);
-
-  return true;
-}
-
-
-#if defined(__i386__) || defined(__x86_64__) || defined(__ia64__)
 long get_efi_systab_smbios()
 {
   long result = 0;
@@ -1879,17 +1739,26 @@ long get_efi_systab_smbios()
 }
 
 
-static bool scan_dmi_devmem(hwNode & n)
+bool scan_dmi(hwNode & n)
 {
-  unsigned char buf[31];
+  unsigned char buf[20];
   int fd = open("/dev/mem",
     O_RDONLY);
   long fp = get_efi_systab_smbios();
   u32 mmoffset = 0;
   void *mmp = NULL;
   bool efi = true;
+  u8 smmajver = 0, smminver = 0;
   u16 dmimaj = 0, dmimin = 0;
+  currentcpu = 0;
 
+#if defined(__arm__) || defined (__hppa__) 
+  return false;		// SMBIOS not supported on PA-RISC and ARM machines
+#endif
+
+  if (sizeof(u8) != 1 || sizeof(u16) != 2 || sizeof(u32) != 4)
+// compiler incompatibility
+    return false;
   if (fd == -1)
     return false;
 
@@ -1916,42 +1785,38 @@ static bool scan_dmi_devmem(hwNode & n)
       close(fd);
       return false;
     }
-    uint32_t len;
-    uint64_t base;
-    if (smbios_entry_point(buf, sizeof(buf), n, dmimaj, dmimin, len, base))
+    else if (memcmp(buf, "_SM_", 4) == 0)
     {
-      u8 *dmi_buf = (u8 *)malloc(len);
-      mmoffset = base % getpagesize();
-      mmp = mmap(0, mmoffset + len, PROT_READ, MAP_SHARED, fd, base - mmoffset);
-      if (mmp == MAP_FAILED)
-      {
-        free(dmi_buf);
-        return false;
-      }
-      memcpy(dmi_buf, (u8 *) mmp + mmoffset, len);
-      munmap(mmp, mmoffset + len);
-      dmi_table(dmi_buf, len, n, dmimaj, dmimin);
-      free(dmi_buf);
-      break;
+// SMBIOS
+      smmajver = buf[6];
+      smminver = buf[7];
     }
+    else if (smmajver && (memcmp(buf, "_DMI_", 5) == 0) && checksum(buf, 0x0F))
+    {
+      u16 num = buf[13] << 8 | buf[12];
+      u16 len = buf[7] << 8 | buf[6];
+      u32 base = buf[11] << 24 | buf[10] << 16 | buf[9] << 8 | buf[8];
+      dmimaj = buf[14] ? buf[14] >> 4 : smmajver;
+      dmimin = buf[14] ? buf[14] & 0x0F : smminver;
+      dmi_table(fd, base, len, num, n, dmimaj, dmimin);
 
-    if (efi)
-      break;                                    // we don't need to search the memory for EFI systems
+      if (efi)
+        break;                                    // we don't need to search the memory for EFI systems
+    }
   }
   close(fd);
+  if (smmajver != 0)
+  {
+    char buffer[20];
+    snprintf(buffer, sizeof(buffer), "%d.%d", smmajver, smminver);
+    n.addCapability("smbios-"+string(buffer), "SMBIOS version "+string(buffer));
+  }
+  if (dmimaj != 0)
+  {
+    char buffer[20];
+    snprintf(buffer, sizeof(buffer), "%d.%d", dmimaj, dmimin);
+    n.addCapability("dmi-"+string(buffer), "DMI version "+string(buffer));
+  }
 
   return true;
-}
-#endif // defined(__i386__) || defined(__x86_64__) || defined(__ia64__)
-
-
-bool scan_dmi(hwNode & n)
-{
-  if (scan_dmi_sysfs(n))
-    return true;
-#if defined(__i386__) || defined(__x86_64__) || defined(__ia64__)
-  if (scan_dmi_devmem(n))
-    return true;
-#endif
-  return false;
 }

@@ -1,0 +1,29 @@
+From 7f2b9eb87609a2a58396ae0e5bbd40de953028bd Mon Sep 17 00:00:00 2001
+From: Lyonel Vincent <lyonel@ezix.org>
+Date: Sun, 21 Sep 2014 15:05:09 +0000
+Subject: [PATCH] assume we have an SMP-capable systems whenever several
+ processors are online
+
+git-svn-id: http://ezix.org/source/packages/lshw/development@2548 811e2811-9fd9-0310-a116-b6e8ac943c8b
+---
+ src/core/smp.cc | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/core/smp.cc b/src/core/smp.cc
+index d069f52..9bd3631 100644
+--- a/src/core/smp.cc
++++ b/src/core/smp.cc
+@@ -398,7 +398,9 @@ bool issmp(hwNode & n)
+ 
+ bool issmp(hwNode & n)
+ {
+-  return false;
++  string onlinecpus = get_string("/sys/devices/system/cpu/online", "0");
++
++  return matches(onlinecpus, "^[0-9]+-[0-9]+") || matches(onlinecpus, "^[0-9]+,[0-9]+");
+ }
+ 
+ #endif
+-- 
+2.7.3
+

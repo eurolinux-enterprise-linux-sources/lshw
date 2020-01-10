@@ -81,7 +81,7 @@
         </dc:subject>
         <cc:license
            rdf:resource="http://creativecommons.org/licenses/GPL/2.0/" />
-        <dc:source>$Id$</dc:source>
+        <dc:source>$Id: sparc.svg 1832 2007-08-09 19:33:36Z lyonel $</dc:source>
       </cc:Work>
       <cc:License
          rdf:about="http://creativecommons.org/licenses/GPL/2.0/">

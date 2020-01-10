@@ -30,7 +30,7 @@
 #include <vector>
 #include <linux/hdreg.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: ide.cc 2526 2013-08-04 12:39:02Z lyonel $");
 
 #define PROC_IDE "/proc/ide"
 

@@ -29,7 +29,7 @@
 #include <unistd.h>
 #include <stdint.h>
 
-__ID("@(#) $Id$");
+__ID("@(#) $Id: partitions.cc 2423 2011-12-03 13:35:39Z lyonel $");
 
 #define LIFBLOCKSIZE 256
 
@@ -304,9 +304,9 @@ static bool guess_logicalname(source & s, const hwNode & disk, unsigned int n, h
   if(!S_ISBLK(buf.st_mode)) return false;
 
   if(s.diskname!="")
-    dev = open_dev(buf.st_rdev + n, S_IFBLK, s.diskname+string(name));
+    dev = open_dev(buf.st_rdev + n, s.diskname+string(name));
   else
-    dev = open_dev(buf.st_rdev + n, S_IFBLK, disk.getLogicalName()+string(name));
+    dev = open_dev(buf.st_rdev + n, disk.getLogicalName()+string(name));
 
   if(dev>=0)
   {
@@ -420,7 +420,6 @@ hwNode & extpart)
       if(analyse_dospart(spart, pte[0].flags, pte[0].type, partition))
       {
         guess_logicalname(spart, extpart, lastlogicalpart, partition);
-	scan_volume(partition, spart);
         extpart.addChild(partition);
         lastlogicalpart++;
       }
@@ -1275,7 +1274,7 @@ static bool detect_lif(source & s, hwNode & n)
   source lifvolume;
   unsigned long dir_start = 0, dir_length = 0;
   unsigned lif_version = 0;
-  unsigned long ipl_addr = 0, ipl_length = 0;
+  unsigned long ipl_addr = 0, ipl_length = 0, ipl_entry = 0;
 
   if(s.offset!=0)
     return false;                                 // LIF boot volumes must be at the beginning of the disk
@@ -1300,9 +1299,9 @@ static bool detect_lif(source & s, hwNode & n)
 
   ipl_addr = be_long(buffer+240);                 // byte address of IPL on media
   ipl_length = be_long(buffer+244);               // size of boot code
-#if 0
   ipl_entry = be_long(buffer+248);                // boot code entry point
 
+#if 0
   fprintf(stderr, "system: %x\n", be_short(buffer+12));
   fprintf(stderr, "start of directory: %ld\n", dir_start);
   fprintf(stderr, "length of directory: %ld\n", dir_length);

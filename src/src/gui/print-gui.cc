@@ -15,7 +15,7 @@
 #include <unistd.h>
 #include <stdio.h>
 
-static const char *id = "@(#) $Id$";
+static const char *id = "@(#) $Id: print-gui.cc 2126 2009-10-06 09:35:06Z lyonel $";
 
 static void printattr(const string & name, const string & value, GtkTextBuffer *buffer, GtkTextIter &iter)
 {

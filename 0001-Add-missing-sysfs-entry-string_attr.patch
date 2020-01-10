@@ -1,0 +1,52 @@
+From 73707308d0c17fffdad2086686135c9cfd179a60 Mon Sep 17 00:00:00 2001
+From: Dan Callaghan <dcallagh@redhat.com>
+Date: Tue, 30 Jun 2015 16:08:22 +1000
+Subject: [PATCH] Add missing sysfs::entry::string_attr
+  Partial patch 73707308d0c17fffdad2086686135c9cfd179a60
+
+---
+ src/core/sysfs.cc | 14 ++++++++++++++
+ src/core/sysfs.h  |  2 ++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/src/core/sysfs.cc b/src/core/sysfs.cc
+index acc9d00..ed2c600 100644
+--- a/src/core/sysfs.cc
++++ b/src/core/sysfs.cc
+@@ -302,6 +302,20 @@ entry entry::parent() const
+ }
+ 
+ 
++string entry::string_attr(const string & name, const string & def) const
++{
++  return hw::strip(get_string(This->devpath + "/" + name, def));
++}
++
++
++vector < string > entry::multiline_attr(const string & name) const
++{
++  vector < string > lines;
++  loadfile(This->devpath + "/" + name, lines);
++  return lines;
++}
++
++
+ vector < entry > sysfs::entries_by_bus(const string & busname)
+ {
+   vector < entry > result;
+diff --git a/src/core/sysfs.h b/src/core/sysfs.h
+index a9dc573..7ceb395 100644
+--- a/src/core/sysfs.h
++++ b/src/core/sysfs.h
+@@ -26,6 +26,8 @@ namespace sysfs
+       string driver() const;
+       entry parent() const;
+       string name_in_class(const string &) const;
++      string string_attr(const string & name, const string & def = "") const;
++      vector < string > multiline_attr(const string & name) const;
+ 
+       struct entry_i * This;
+ 
+-- 
+2.7.3
+

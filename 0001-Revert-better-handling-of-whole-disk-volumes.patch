@@ -12,7 +12,7 @@ diff --git a/src/core/partitions.cc b/src/core/partitions.cc
 index 634a8c0..7a90952 100644
 --- a/src/core/partitions.cc
 +++ b/src/core/partitions.cc
-@@ -1392,8 +1392,7 @@ bool scan_partitions(hwNode & n)
+@@ -1391,8 +1391,7 @@ bool scan_partitions(hwNode & n)
  
    if(!medium->isCapable("partitioned"))
    {
